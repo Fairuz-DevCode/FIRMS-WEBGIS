@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: firms_postgres_db
+    restart: always
+    environment:
+      POSTGRES_DB: firms_db
+      POSTGRES_USER: firms_user
+      POSTGRES_PASSWORD: firms_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./data/hotspots_7years_clean.csv:/docker-entrypoint-initdb.d/hotspots_7years_clean.csv
+      - postgres_db_data:/var/lib/postgresql/data
+    networks:
+      - firms_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U firms_user -d firms_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: firms_backend
+    restart: always
+    environment:
+      PORT: 5000
+      DB_HOST: db
+      DB_USER: firms_user
+      DB_PASSWORD: firms_password
+      DB_NAME: firms_db
+      DB_PORT: 5432
+      DATABASE_URL: postgresql+psycopg2://firms_user:firms_password@db:5432/firms_db
+      ASYNC_DATABASE_URL: postgresql+asyncpg://firms_user:firms_password@db:5432/firms_db
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - firms_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: firms_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - firms_net
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: firms_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - firms_net
+
+networks:
+  firms_net:
+    driver: bridge
+
+volumes:
+  postgres_db_data:
+    driver: local
