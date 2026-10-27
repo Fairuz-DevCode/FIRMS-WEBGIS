@@ -24,7 +24,8 @@ import ClimateLegend from './ClimateLegend';
 
 import SipongiHeader from './SipongiHeader';
 import SatelliteStatsWidget from './SatelliteStatsWidget';
-import BottomRightControls from './BottomRightControls';
+import NavbarControls from './NavbarControls';
+import HotspotAnalyticsSidebar, { SelectedHotspotAnalytics } from './HotspotAnalyticsSidebar';
 import { isPointInPeatlands, preparePeatlandPolygons, PreparedPolygon } from '../../shared/utils/spatial.utils';
 
 // Indonesia bounds & default center
@@ -86,7 +87,11 @@ export const MapView: React.FC = () => {
   const [peatlandOnly, setPeatlandOnly] = useState<boolean>(false);
 
   // Bottom-right floating popovers state ('layers' | 'calendar' | null)
-  const [activePopover, setActivePopover] = useState<'layers' | 'calendar' | null>(null);
+  // Navbar Dropdown state ('layers' | 'regions' | 'calendar' | null)
+  const [activeDropdown, setActiveDropdown] = useState<'layers' | 'regions' | 'calendar' | null>(null);
+
+  // Selected Hotspot Analytics Sidebar state
+  const [selectedHotspot, setSelectedHotspot] = useState<SelectedHotspotAnalytics | null>(null);
 
   // Climate / Hydrological layer states (Default 50% opacity)
   const [showRainfall, setShowRainfall] = useState<boolean>(false);
@@ -261,21 +266,12 @@ export const MapView: React.FC = () => {
         });
       }
     } else {
-      // By default: Hanya tampilkan titik panas di Pulau Sumatera, Kalimantan, dan Papua
-      const sumateraBbox = [95.0, -6.0, 109.0, 6.1];
-      const kalimantanBbox = [108.5, -4.5, 119.2, 4.5];
-      const papuaBbox = [130.5, -9.5, 141.0, 1.0];
-
+      // By default: Tampilkan seluruh titik panas di seluruh wilayah Indonesia (Sabang sampai Merauke)
       list = list.filter(row => {
         const lat = row[HOTSPOT_COL.LAT];
         const lng = row[HOTSPOT_COL.LNG];
         if (lat === null || lng === null) return false;
-
-        const inSumatera = lng >= sumateraBbox[0] && lng <= sumateraBbox[2] && lat >= sumateraBbox[1] && lat <= sumateraBbox[3];
-        const inKalimantan = lng >= kalimantanBbox[0] && lng <= kalimantanBbox[2] && lat >= kalimantanBbox[1] && lat <= kalimantanBbox[3];
-        const inPapua = lng >= papuaBbox[0] && lng <= papuaBbox[2] && lat >= papuaBbox[1] && lat <= papuaBbox[3];
-
-        return inSumatera || inKalimantan || inPapua;
+        return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
       });
     }
 
@@ -286,7 +282,7 @@ export const MapView: React.FC = () => {
   useEffect(() => {
     if (selectedModule === 'PENGGUNAAN_LAHAN') {
       setShowLandCover(true);
-      setActivePopover('layers');
+      setActiveDropdown('layers');
     }
   }, [selectedModule]);
 
@@ -298,68 +294,56 @@ export const MapView: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-900">
-      {/* 1. TOP HEADER BAR WITH RESEARCH TITLE & YEAR 2026 */}
-      <SipongiHeader selectedModule={selectedModule} onModuleChange={setSelectedModule} />
+      {/* 1. TOP HEADER BAR WITH NAVBAR DROPDOWNS (Layer, Wilayah, Date) */}
+      <SipongiHeader>
+        <NavbarControls
+          basemap={basemap}
+          onBasemapToggle={handleBasemapToggle}
+          activeDropdown={activeDropdown}
+          onToggleDropdown={(dropdown) => setActiveDropdown(activeDropdown === dropdown ? null : dropdown)}
+          onCloseDropdown={() => setActiveDropdown(null)}
+          showHotspots={showHotspots}
+          onToggleHotspots={setShowHotspots}
+          showPeatland={showPeatland}
+          onTogglePeatland={setShowPeatland}
+          peatlandOnly={peatlandOnly}
+          onTogglePeatlandOnly={setPeatlandOnly}
+          showLandCover={showLandCover}
+          onToggleLandCover={setShowLandCover}
+          landCoverProvider={landCoverProvider}
+          onLandCoverProviderChange={setLandCoverProvider}
+          onOpenGeoTIFFModal={() => setIsGeoTIFFModalOpen(true)}
+          localGeoTIFFFileName={localGeoTIFFFileName}
+          showRainfall={showRainfall}
+          onToggleRainfall={setShowRainfall}
+          showSoilMoisture={showSoilMoisture}
+          onToggleSoilMoisture={setShowSoilMoisture}
+          showTemperature={showTemperature}
+          onToggleTemperature={setShowTemperature}
+          selectedIsland={selectedIsland}
+          onIslandChange={handleIslandChange}
+          selectedProvince={selectedProvince}
+          onProvinceChange={handleProvinceChange}
+          dateFilterMode={dateFilterMode}
+          onDateFilterModeChange={setDateFilterMode}
+          singleDate={singleDate}
+          onSingleDateChange={setSingleDate}
+          startDate={startDate}
+          onStartDateChange={setStartDate}
+          endDate={endDate}
+          onEndDateChange={setEndDate}
+          hotspotMode={hotspotMode}
+          onHotspotModeChange={setHotspotMode}
+        />
+      </SipongiHeader>
 
-      {/* MAP */}
+      {/* MAP VIEWPORT & SIDEBAR */}
       <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
         <div className="relative h-full min-w-0 flex-1">
 
-          {/* Popovers: floating comfortably ABOVE the bottom widgets without collision */}
-          <div className="absolute bottom-[105px] left-6 z-[1200] flex flex-col gap-3 pointer-events-auto">
-            <LayerControlPopover
-              isOpen={activePopover === 'layers'}
-              onClose={() => setActivePopover(null)}
-              showHotspots={showHotspots}
-              onToggleHotspots={setShowHotspots}
-              showPeatland={showPeatland}
-              onTogglePeatland={setShowPeatland}
-              peatlandOnly={peatlandOnly}
-              onTogglePeatlandOnly={setPeatlandOnly}
-              showLandCover={showLandCover}
-              onToggleLandCover={setShowLandCover}
-              showRainfall={showRainfall}
-              onToggleRainfall={setShowRainfall}
-              showSoilMoisture={showSoilMoisture}
-              onToggleSoilMoisture={setShowSoilMoisture}
-              showTemperature={showTemperature}
-              onToggleTemperature={setShowTemperature}
-              landCoverProvider={landCoverProvider}
-              onLandCoverProviderChange={setLandCoverProvider}
-              landCoverOpacity={landCoverOpacity}
-              onLandCoverOpacityChange={setLandCoverOpacity}
-              onOpenGeoTIFFModal={() => setIsGeoTIFFModalOpen(true)}
-              localGeoTIFFFileName={localGeoTIFFFileName}
-              filteredCount={displayedHotspots.length}
-            />
-
-            <CalendarFilterPopover
-              isOpen={activePopover === 'calendar'}
-              onClose={() => setActivePopover(null)}
-              sensor={sensor}
-              onSensorChange={setSensor}
-              hotspotMode={hotspotMode}
-              onHotspotModeChange={setHotspotMode}
-              dayRange={dayRange}
-              onDayRangeChange={setDayRange}
-              dateFilterMode={dateFilterMode}
-              onDateFilterModeChange={setDateFilterMode}
-              singleDate={singleDate}
-              onSingleDateChange={setSingleDate}
-              startDate={startDate}
-              onStartDateChange={setStartDate}
-              endDate={endDate}
-              onEndDateChange={setEndDate}
-              selectedIsland={selectedIsland}
-              onIslandChange={handleIslandChange}
-              selectedProvince={selectedProvince}
-              onProvinceChange={handleProvinceChange}
-            />
-          </div>
-
-          {/* Floating Climate, Land Cover & Satellite Stats Legends (Pojok Kanan Atas) */}
-          <div className="absolute top-20 right-6 z-[1000] flex flex-col gap-2.5 pointer-events-auto max-w-[280px]">
-            {/* Informasi NASA FIRMS diletakkan paling atas */}
+          {/* Floating Climate, Land Cover & Satellite Stats Legends (Pojok Kiri Atas Peta) */}
+          <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 pointer-events-auto max-w-[270px]">
+            {/* Informasi Sensor NASA FIRMS */}
             <SatelliteStatsWidget hotspots={displayedHotspots} currentSensor={sensor} />
 
             {showLandCover && (
@@ -392,12 +376,10 @@ export const MapView: React.FC = () => {
             )}
           </div>
 
-          {/* Bottom-Right Floating Controls (Layers & Calendar Popover Buttons) */}
-          <BottomRightControls
-            basemap={basemap}
-            onBasemapToggle={handleBasemapToggle}
-            activePopover={activePopover}
-            onTogglePopover={(p) => setActivePopover(activePopover === p ? null : p)}
+          {/* Sidebar Analisis Spasial Titik Api (Muncul di Kanan saat Titik Api Diklik) */}
+          <HotspotAnalyticsSidebar
+            data={selectedHotspot}
+            onClose={() => setSelectedHotspot(null)}
           />
 
           {/* MapContainer with preferCanvas={true} for high performance vector rendering */}
@@ -450,6 +432,7 @@ export const MapView: React.FC = () => {
                 features={displayedHotspots}
                 onHotspotData={setHotspotData}
                 peatlandPolygons={peatlandPolygons}
+                onSelectHotspot={setSelectedHotspot}
                 activeContext={{
                   showPeatland,
                   showLandCover,

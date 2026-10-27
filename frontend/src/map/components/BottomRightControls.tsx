@@ -20,7 +20,10 @@ export const BottomRightControls: React.FC<BottomRightControlsProps> = ({
   onTogglePopover,
 }) => {
   return (
-    <div className="absolute bottom-6 left-6 z-[1000] flex select-none items-center gap-2.5">
+    <div
+      data-popover-controls="true"
+      className="absolute bottom-6 left-6 z-[1000] flex select-none items-center gap-2.5"
+    >
       {/* 1. Basemap Switcher */}
       <button
         type="button"

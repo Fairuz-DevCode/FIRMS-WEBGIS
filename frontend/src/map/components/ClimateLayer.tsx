@@ -9,46 +9,8 @@ import L from 'leaflet';
  * Excludes Malaysia (Sabah/Sarawak), Singapore, Brunei, and Timor-Leste.
  */
 function isInIndonesia(lng: number, lat: number): boolean {
-  // Sumatera: exclude Peninsular Malaysia
-  if (lng >= 95.0 && lng <= 109.0 && lat >= -6.0 && lat <= 6.1) {
-    if (lng >= 99.5 && lng <= 104.6 && lat >= 1.5 && lat <= 6.8) return false;
-    if (lng >= 103.55 && lng <= 104.1 && lat >= 1.15 && lat <= 1.5) return false;
-    return true;
-  }
-
-  // Kalimantan (Indonesia only — exclude Sabah, Sarawak, Brunei):
-  if (lng >= 108.0 && lng <= 119.5 && lat >= -4.5 && lat <= 4.5) {
-    if (lng < 114.0 && lat > 2.0) return false;
-    if (lng >= 114.0 && lng < 115.5 && lat > 1.2) return false;
-    if (lng >= 115.5 && lat > 4.2) return false;
-    return true;
-  }
-
-  // Jawa & Bali
-  if (lng >= 105.0 && lng <= 115.7 && lat >= -9.0 && lat <= -5.8) return true;
-
-  // Sulawesi
-  if (lng >= 118.5 && lng <= 125.8 && lat >= -7.0 && lat <= 2.5) return true;
-
-  // Nusa Tenggara (NTB, NTT) — excludes Timor-Leste
-  if (lng >= 115.8 && lng <= 125.2 && lat >= -11.0 && lat <= -8.0) {
-    if (lng > 125.0 && lat >= -9.6 && lat <= -8.1) return false;
-    return true;
-  }
-
-  // Maluku
-  if (lng >= 124.0 && lng <= 132.0 && lat >= -9.0 && lat <= 2.7) return true;
-
-  // Papua (Indonesia) — excludes PNG (east of 141°E)
-  if (lng >= 130.5 && lng <= 141.0 && lat >= -9.5 && lat <= 1.0) return true;
-
-  // Kepulauan Riau & small islands between Sumatera and Kalimantan
-  if (lng >= 103.2 && lng <= 109.2 && lat >= -1.0 && lat <= 4.8) {
-    if (lng >= 103.55 && lng <= 104.1 && lat >= 1.15 && lat <= 1.5) return false;
-    return true;
-  }
-
-  return false;
+  // Rentang koordinat kepulauan Indonesia: Sabang sampai Merauke
+  return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
 }
 
 export type ClimateType = 'rainfall' | 'soil_moisture' | 'temperature';

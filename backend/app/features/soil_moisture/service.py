@@ -20,6 +20,7 @@ class SoilMoistureService:
                     SELECT latitude, longitude, soil_moisture
                     FROM soil_moisture_data
                     WHERE waktu = (SELECT MAX(waktu) FROM soil_moisture_data)
+                      AND is_indonesia = TRUE
                     LIMIT :limit
                 )
                 SELECT 

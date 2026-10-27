@@ -20,6 +20,7 @@ class RainfallService:
                     SELECT latitude, longitude, curah_hujan_mm
                     FROM rainfall_data
                     WHERE waktu = (SELECT MAX(waktu) FROM rainfall_data)
+                      AND is_indonesia = TRUE
                     LIMIT :limit
                 )
                 SELECT 

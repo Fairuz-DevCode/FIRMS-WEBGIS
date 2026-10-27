@@ -110,18 +110,6 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
       {terraAqua.total > 0 && <StatRow title="NASA-TERRA/AQUA" data={terraAqua} />}
       {noaa20.total > 0 && <StatRow title="NASA-NOAA20" data={noaa20} />}
       {noaa21.total > 0 && <StatRow title="NASA-NOAA21" data={noaa21} />}
-
-      <div className="flex items-center justify-center gap-1.5 pt-1.5 border-t border-slate-100">
-        <span className="flex items-center gap-1 rounded border border-green-200 bg-green-50 px-2 py-0.5 text-[0.72rem] font-semibold text-green-700">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500" /> Low
-        </span>
-        <span className="flex items-center gap-1 rounded border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-[0.72rem] font-semibold text-yellow-700">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-yellow-500" /> Medium
-        </span>
-        <span className="flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-0.5 text-[0.72rem] font-semibold text-red-700">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500" /> High
-        </span>
-      </div>
     </div>
   );
 };

@@ -18,6 +18,7 @@ from app.features import (
     rainfall_router,
     soil_moisture_router
 )
+from app.features.analytics_router import router as analytics_router
 
 scheduler = AsyncIOScheduler()
 
@@ -32,16 +33,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️ Startup Warning: Database initialization deferred or waiting for container: {e}")
     
-    # Start APScheduler for FIRMS sync (twice a day: 00:00 and 12:00)
+    # Start APScheduler for FIRMS sync (twice a day: 04:00 subuh & 16:00 sore WIB / Asia/Jakarta)
     try:
         scheduler.add_job(
             sync_nasa_firms_data,
-            CronTrigger(hour="0,12", minute="0"),
+            CronTrigger(hour="4,16", minute="0", timezone="Asia/Jakarta"),
             id="nasa_firms_sync_job",
             replace_existing=True
         )
         scheduler.start()
-        print("⏰ [Scheduler] APScheduler started for NASA FIRMS sync (scheduled daily at 00:00 & 12:00).")
+        print("⏰ [Scheduler] APScheduler started for NASA FIRMS sync (scheduled daily at 04:00 & 16:00 WIB / Asia/Jakarta).")
     except Exception as e:
         print(f"⚠️ [Scheduler Warning] Failed to start APScheduler: {e}")
 
@@ -80,6 +81,7 @@ app.include_router(land_cover_router)
 app.include_router(temperature_router)
 app.include_router(rainfall_router)
 app.include_router(soil_moisture_router)
+app.include_router(analytics_router)
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=settings.PORT, reload=True)

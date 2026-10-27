@@ -253,17 +253,29 @@ async def get_hotspot_stats_from_db(db: AsyncSession) -> Dict[str, Any]:
 async def get_environmental_context_at_point(
     db: AsyncSession,
     lat: float,
-    lng: float
+    lng: float,
+    date_str: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Query PostGIS directly for environmental factors at given lat, lng:
+    Query PostGIS directly for environmental factors and spatial clustering at given lat, lng:
     1. Peatland intersection (ST_Intersects)
-    2. Nearest ERA5 Temperature
-    3. Nearest ERA5 Soil Moisture
-    4. Nearest ERA5 Rainfall
+    2. Province name (ST_Intersects with indonesia_boundary)
+    3. Nearest ERA5 Temperature
+    4. Nearest ERA5 Soil Moisture
+    5. Nearest ERA5 Rainfall
+    6. Spatial Cluster Density (Hotspots count within ~15km radius)
     """
     try:
         from sqlalchemy import text
+        import datetime
+
+        target_date = None
+        if date_str:
+            try:
+                target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                target_date = None
+
         query = text("""
             SELECT 
                 EXISTS(
@@ -271,6 +283,11 @@ async def get_environmental_context_at_point(
                     WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326))
                     LIMIT 1
                 ) as is_peatland,
+                (
+                    SELECT name FROM indonesia_boundary
+                    WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326))
+                    LIMIT 1
+                ) as province,
                 (
                     SELECT suhu_celsius 
                     FROM temperature 
@@ -291,14 +308,29 @@ async def get_environmental_context_at_point(
                     WHERE waktu = (SELECT MAX(waktu) FROM rainfall_data)
                     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) 
                     LIMIT 1
-                ) as rainfall;
+                ) as rainfall,
+                (
+                    SELECT COUNT(id) FROM hotspots
+                    WHERE (:target_date IS NULL OR acq_date = :target_date)
+                      AND geom && ST_Expand(ST_SetSRID(ST_Point(:lng, :lat), 4326), 0.15)
+                      AND ST_Distance(geom, ST_SetSRID(ST_Point(:lng, :lat), 4326)) > 0.0001
+                ) as nearby_cluster_count,
+                (
+                    SELECT COALESCE(ROUND((MIN(ST_Distance(geom, ST_SetSRID(ST_Point(:lng, :lat), 4326)) * 111.32)::numeric), 2), 0)
+                    FROM hotspots
+                    WHERE (:target_date IS NULL OR acq_date = :target_date)
+                      AND geom && ST_Expand(ST_SetSRID(ST_Point(:lng, :lat), 4326), 0.15)
+                      AND ST_Distance(geom, ST_SetSRID(ST_Point(:lng, :lat), 4326)) > 0.0001
+                ) as nearest_neighbor_km;
         """)
-        result = await db.execute(query.bindparams(lat=lat, lng=lng))
+        result = await db.execute(query.bindparams(lat=lat, lng=lng, target_date=target_date))
         row = result.first()
         if row:
             temp_val = round(float(row.temperature), 1) if row.temperature is not None else None
             sm_val = round(float(row.soil_moisture), 3) if row.soil_moisture is not None else None
             rain_val = round(float(row.rainfall), 1) if row.rainfall is not None else None
+            cluster_count = int(row.nearby_cluster_count or 0)
+            nearest_km = float(row.nearest_neighbor_km or 0.0)
 
             # Category labels
             temp_desc = "Panas Ekstrem" if temp_val and temp_val > 32 else ("Hangat" if temp_val and temp_val >= 26 else "Sejuk")
@@ -310,6 +342,12 @@ async def get_environmental_context_at_point(
                 "lat": lat,
                 "lng": lng,
                 "is_peatland": bool(row.is_peatland),
+                "province": row.province or "Indonesia",
+                "cluster": {
+                    "nearby_count": cluster_count,
+                    "nearest_neighbor_km": nearest_km,
+                    "radius_km": 15
+                },
                 "temperature": {
                     "value": temp_val,
                     "unit": "°C",

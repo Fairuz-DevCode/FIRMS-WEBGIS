@@ -73,6 +73,8 @@ export function getHotspotStyle(props: any): HotspotStyle {
 /**
  * Creates lightweight HTML markup for the marker popup.
  */
+import { ESRI_LAND_COVER_CLASSES } from '../../land_cover/constants/landCover.constants';
+
 export interface ActiveLayersContext {
   showPeatland: boolean;
   isPeatland?: boolean;
@@ -118,84 +120,81 @@ function createPopupContent(
     badgeBorder = '#fde047';
   }
 
-  // Peatland status badge (Always active by default)
+  // Peatland status badge
   const isPeat = context?.isPeatland === true;
-  const peatBadgeBg = isPeat ? '#fef3c7' : '#f1f5f9';
-  const peatBadgeColor = isPeat ? '#b45309' : '#64748b';
-  const peatBadgeBorder = isPeat ? '#fde68a' : '#cbd5e1';
-  const peatLabel = isPeat ? '🌿 DI DALAM GAMBUT' : 'DI LUAR GAMBUT';
+  const peatLabel = isPeat ? 'Di Dalam Gambut' : 'Di Luar Gambut';
 
   return `
-    <div style="min-width: 240px; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; color: #334155; padding: 2px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 6px;">
-        <span style="font-weight: 700; color: #0f172a; font-size: 13px;">🔥 Titik Api Aktif</span>
-        <span style="font-weight: 700; font-size: 10px; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; border: 1px solid ${badgeBorder}; background: ${badgeBg}; color: ${badgeColor};">
+    <div style="min-width: 260px; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; font-size: 11.5px; color: #475569; padding: 2px;">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
+        <span style="font-weight: 700; color: #0f172a; font-size: 13px;">Informasi Titik Api</span>
+        <span style="font-weight: 700; font-size: 10px; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; border: 1px solid ${badgeBorder}; background: ${badgeBg}; color: ${badgeColor};">
           ${confidence || 'N/A'}
         </span>
       </div>
-      <div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #f1f5f9;">
-        <span>Sensor / Satelit:</span>
-        <strong style="color: #0f172a;">${sensorName}</strong>
-      </div>
-      <div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #f1f5f9;">
-        <span>Waktu Deteksi:</span>
-        <strong style="color: #0f172a;">${acq_date} ${acq_time} UTC</strong>
-      </div>
-      <div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #f1f5f9;">
-        <span>Suhu Kecerahan:</span>
-        <strong style="color: #ef4444;">${brightness !== null ? Number(brightness).toFixed(1) + ' K' : 'N/A'}</strong>
-      </div>
-      <div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #f1f5f9;">
-        <span>FRP (Kekuatan Api):</span>
-        <strong style="color: #0f172a;">${frp !== null ? Number(frp).toFixed(1) + ' MW' : 'N/A'}</strong>
-      </div>
-      <div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #f1f5f9;">
-        <span>Koordinat:</span>
-        <strong style="color: #0f172a;">${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}</strong>
-      </div>
 
-      <!-- STATUS LAHAN GAMBUT (SELALU AKTIF) -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f1f5f9;">
-        <span style="font-weight: 600;">Status Lahan Gambut:</span>
-        <span style="font-weight: 700; font-size: 9px; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; border: 1px solid ${peatBadgeBorder}; background: ${peatBadgeBg}; color: ${peatBadgeColor};">
-          ${peatLabel}
-        </span>
-      </div>
-
-      <!-- DINAMIS SESUAI LAYER YANG AKTIF -->
-      ${context?.showLandCover ? `
-        <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f1f5f9; background: #f0fdf4; margin: 2px -2px; padding: 3px 4px; border-radius: 4px;">
-          <span style="color: #166534; font-weight: 600;">🗺️ Penutupan Lahan:</span>
-          <strong style="color: #15803d;">${context.landCoverClass || 'Hutan Rawa Gambut / Vegetasi'}</strong>
+      <!-- Detail Parameter -->
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Sensor / Satelit:</span>
+          <strong style="color: #1e293b;">${sensorName}</strong>
         </div>
-      ` : ''}
-
-      ${context?.showRainfall ? `
-        <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f1f5f9; background: #f0f9ff; margin: 2px -2px; padding: 3px 4px; border-radius: 4px;">
-          <span style="color: #0369a1; font-weight: 600;">🌧️ Curah Hujan:</span>
-          <strong style="color: #0284c7;">
-            ${context.rainfall ? `${context.rainfall.value} mm (${context.rainfall.category})` : 'Memuat data...'}
-          </strong>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Waktu Deteksi:</span>
+          <strong style="color: #1e293b;">${acq_date} ${acq_time} UTC</strong>
         </div>
-      ` : ''}
-
-      ${context?.showSoilMoisture ? `
-        <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f1f5f9; background: #fffbeb; margin: 2px -2px; padding: 3px 4px; border-radius: 4px;">
-          <span style="color: #92400e; font-weight: 600;">💧 Kelembaban Tanah:</span>
-          <strong style="color: #b45309;">
-            ${context.soilMoisture ? `${context.soilMoisture.value} m³/m³ (${context.soilMoisture.category})` : 'Memuat data...'}
-          </strong>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Suhu Kecerahan:</span>
+          <strong style="color: #1e293b;">${brightness !== null ? Number(brightness).toFixed(1) + ' K' : 'N/A'}</strong>
         </div>
-      ` : ''}
-
-      ${context?.showTemperature ? `
-        <div style="display: flex; justify-content: space-between; padding: 3px 0; background: #fef2f2; margin: 2px -2px; padding: 3px 4px; border-radius: 4px;">
-          <span style="color: #991b1b; font-weight: 600;">🌡️ Suhu Udara:</span>
-          <strong style="color: #dc2626;">
-            ${context.temperature ? `${context.temperature.value} °C (${context.temperature.category})` : 'Memuat data...'}
-          </strong>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Kekuatan Api (FRP):</span>
+          <strong style="color: #1e293b;">${frp !== null ? Number(frp).toFixed(1) + ' MW' : 'N/A'}</strong>
         </div>
-      ` : ''}
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Koordinat:</span>
+          <strong style="color: #1e293b;">${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Status Lahan Gambut:</span>
+          <strong style="color: #1e293b;">${peatLabel}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; gap: 12px;">
+          <span style="color: #64748b; white-space: nowrap; flex-shrink: 0;">Tutupan Lahan:</span>
+          <div style="text-align: right; max-width: 140px; word-break: break-word;">
+            ${(() => {
+              const text = context?.landCoverClass || 'Memuat...';
+              if (text.includes(' / ')) {
+                const parts = text.split(' / ');
+                return `<strong style="color: #1e293b; display: block; line-height: 1.25;">${parts[0]}</strong><div style="font-size: 10px; color: #64748b; font-weight: 500; margin-top: 1px;">${parts.slice(1).join(' / ')}</div>`;
+              }
+              return `<strong style="color: #1e293b; display: block; line-height: 1.25;">${text}</strong>`;
+            })()}
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Curah Hujan:</span>
+          <div style="text-align: right;">
+            <strong style="color: #1e293b;">${context?.rainfall ? `${context.rainfall.value} mm` : 'Memuat...'}</strong>
+            ${context?.rainfall?.category ? `<div style="font-size: 10px; color: #64748b; font-weight: 500;">${context.rainfall.category}</div>` : ''}
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+          <span style="color: #64748b;">Kelembaban Tanah:</span>
+          <div style="text-align: right;">
+            <strong style="color: #1e293b;">${context?.soilMoisture ? `${context.soilMoisture.value} m³/m³` : 'Memuat...'}</strong>
+            ${context?.soilMoisture?.category ? `<div style="font-size: 10px; color: #64748b; font-weight: 500;">${context.soilMoisture.category}</div>` : ''}
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding-bottom: 2px;">
+          <span style="color: #64748b;">Suhu Udara:</span>
+          <div style="text-align: right;">
+            <strong style="color: #1e293b;">${context?.temperature ? `${context.temperature.value} °C` : 'Memuat...'}</strong>
+            ${context?.temperature?.category ? `<div style="font-size: 10px; color: #64748b; font-weight: 500;">${context.temperature.category}</div>` : ''}
+          </div>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -336,6 +335,8 @@ function HeatmapOverlay({ hotspots }: { hotspots: HotspotMatrixRow[] }) {
   return null;
 }
 
+import { SelectedHotspotAnalytics } from '../../../map/components/HotspotAnalyticsSidebar';
+
 interface HotspotLayerProps {
   sensor?: SensorType;
   days?: number;
@@ -347,6 +348,7 @@ interface HotspotLayerProps {
   onHotspotData?: (data: HotspotMatrixRow[]) => void;
   activeContext?: ActiveLayersContext;
   peatlandPolygons?: any[];
+  onSelectHotspot?: (analytics: SelectedHotspotAnalytics | null) => void;
 }
 
 export default function HotspotLayer({
@@ -359,7 +361,8 @@ export default function HotspotLayer({
   features,
   onHotspotData,
   activeContext,
-  peatlandPolygons = []
+  peatlandPolygons = [],
+  onSelectHotspot
 }: HotspotLayerProps) {
   const { hotspots: fetchedHotspots, loading, error } = useHotspots(sensor, days, date, startDate, endDate);
   const map = useMap();
@@ -518,25 +521,85 @@ export default function HotspotLayer({
             maxWidth: 300
           });
 
-          // Dynamic asynchronous fetch when clicked: if climate layers are active
+          // Dynamic asynchronous fetch when clicked: open sidebar & query environmental & land cover context
           circleMarker.on('click', async () => {
-            if (baseContext.showRainfall || baseContext.showSoilMoisture || baseContext.showTemperature) {
-              try {
-                const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
-                const res = await fetch(`${backendUrl}/api/hotspots/context?lat=${lat}&lng=${lng}`);
-                if (res.ok) {
-                  const data = await res.json();
-                  const updatedContext: ActiveLayersContext = {
-                    ...baseContext,
-                    isPeatland: data.is_peatland ?? isPeat,
-                    rainfall: data.rainfall ? { value: data.rainfall.value, category: data.rainfall.category } : undefined,
-                    soilMoisture: data.soil_moisture ? { value: data.soil_moisture.value, category: data.soil_moisture.category } : undefined,
-                    temperature: data.temperature ? { value: data.temperature.value, category: data.temperature.category } : undefined,
-                  };
-                  circleMarker.setPopupContent(createPopupContent(leafProps.rawRow, sensor, updatedContext));
+            if (onSelectHotspot) {
+              onSelectHotspot({
+                row: leafProps.rawRow,
+                sensor,
+                isPeatland: isPeat,
+                loading: true
+              });
+            }
+
+            try {
+              const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+              
+              // 1. Fetch climate, peatland, and spatial cluster context from backend PostGIS
+              const targetDate = leafProps.rawRow[HOTSPOT_COL.ACQ_DATE] || '';
+              const climatePromise = fetch(`${backendUrl}/api/hotspots/context?lat=${lat}&lng=${lng}&date=${targetDate}`)
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null);
+
+              // 2. Query Esri Sentinel-2 Land Cover identify REST service
+              const esriIdentifyUrl = `https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/identify?geometry=%7Bx%3A${lng}%2Cy%3A${lat}%2CspatialReference%3A%7Bwkid%3A4326%7D%7D&geometryType=esriGeometryPoint&f=json`;
+              const landCoverPromise = fetch(esriIdentifyUrl)
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null);
+
+              const [climateData, landCoverData] = await Promise.all([climatePromise, landCoverPromise]);
+
+              let detectedLandCover: string | undefined = undefined;
+              if (landCoverData && landCoverData.value) {
+                const valNum = parseInt(String(landCoverData.value), 10);
+                if (ESRI_LAND_COVER_CLASSES[valNum]) {
+                  detectedLandCover = ESRI_LAND_COVER_CLASSES[valNum].label;
+                } else if (landCoverData.value !== 'NoData') {
+                  detectedLandCover = `Kelas ${landCoverData.value}`;
                 }
-              } catch (e) {
-                console.warn('[HotspotLayer] Context fetch error:', e);
+              }
+
+              const isPointPeat = climateData?.is_peatland ?? isPeat;
+              const pointLandCover = detectedLandCover || (baseContext.landCoverClass || 'Vegetasi / Lahan Terbuka');
+              const pointRainfall = climateData?.rainfall ? { value: climateData.rainfall.value, category: climateData.rainfall.category } : undefined;
+              const pointSoilMoisture = climateData?.soil_moisture ? { value: climateData.soil_moisture.value, category: climateData.soil_moisture.category } : undefined;
+              const pointTemperature = climateData?.temperature ? { value: climateData.temperature.value, category: climateData.temperature.category } : undefined;
+
+              const updatedContext: ActiveLayersContext = {
+                ...baseContext,
+                isPeatland: isPointPeat,
+                landCoverClass: pointLandCover,
+                rainfall: pointRainfall,
+                soilMoisture: pointSoilMoisture,
+                temperature: pointTemperature,
+              };
+
+              circleMarker.setPopupContent(createPopupContent(leafProps.rawRow, sensor, updatedContext));
+
+              // Update sidebar analytics data
+              if (onSelectHotspot) {
+                onSelectHotspot({
+                  row: leafProps.rawRow,
+                  sensor,
+                  isPeatland: isPointPeat,
+                  province: climateData?.province || 'Indonesia',
+                  landCoverClass: pointLandCover,
+                  cluster: climateData?.cluster,
+                  rainfall: pointRainfall,
+                  soilMoisture: pointSoilMoisture,
+                  temperature: pointTemperature,
+                  loading: false
+                });
+              }
+            } catch (e) {
+              console.warn('[HotspotLayer] Context fetch error:', e);
+              if (onSelectHotspot) {
+                onSelectHotspot({
+                  row: leafProps.rawRow,
+                  sensor,
+                  isPeatland: isPeat,
+                  loading: false
+                });
               }
             }
           });

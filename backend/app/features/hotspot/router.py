@@ -59,14 +59,15 @@ async def read_hotspot_stats(db: AsyncSession = Depends(get_db)):
 async def get_hotspot_environmental_context(
     lat: float = Query(..., description="Latitude of hotspot"),
     lng: float = Query(..., description="Longitude of hotspot"),
+    date: Optional[str] = Query(None, description="Acquisition date YYYY-MM-DD for spatial cluster detection"),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get environmental factors (peatland intersection, temperature, soil moisture, rainfall)
-    for a specific clicked hotspot point.
+    and spatial cluster metrics (neighboring points within 15km) for a specific clicked hotspot point.
     """
     from app.features.hotspot.service import get_environmental_context_at_point
-    return await get_environmental_context_at_point(db=db, lat=lat, lng=lng)
+    return await get_environmental_context_at_point(db=db, lat=lat, lng=lng, date_str=date)
 
 @router.post("/hotspots/sync-now", response_model=HotspotSyncResponse)
 async def trigger_hotspot_sync(

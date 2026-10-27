@@ -133,6 +133,25 @@ async def sync_nasa_firms_data(
             cache.clear()
             print(f"✅ [FIRMS Sync Success] Successfully synced {inserted_count} hotspot records. In-memory cache invalidated.")
 
+            # Enrich province and peatland flags for newly synced records
+            try:
+                enrich_sql = text("""
+                    UPDATE hotspots h
+                    SET province = b.name
+                    FROM indonesia_boundary b
+                    WHERE h.province IS NULL AND ST_Intersects(h.geom, b.geom);
+
+                    UPDATE hotspots h
+                    SET is_peatland = TRUE
+                    FROM peatlands p
+                    WHERE h.province IS NOT NULL AND h.is_peatland = FALSE AND h.geom && p.geom AND ST_Intersects(h.geom, p.geom);
+                """)
+                await session.execute(enrich_sql)
+                await session.commit()
+                print("✅ [FIRMS Sync] Spatial attributes (province & peatland) enriched.")
+            except Exception as e_enrich:
+                print(f"⚠️ [FIRMS Sync Warning] Spatial enrichment skipped/failed: {e_enrich}")
+
             return {
                 "status": "success",
                 "message": f"Successfully processed {len(records_to_insert)} records.",
