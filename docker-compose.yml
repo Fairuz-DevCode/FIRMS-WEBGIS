@@ -36,6 +36,7 @@ services:
       DB_PORT: 5432
       DATABASE_URL: postgresql+psycopg2://firms_user:firms_password@db:5432/firms_db
       ASYNC_DATABASE_URL: postgresql+asyncpg://firms_user:firms_password@db:5432/firms_db
+      MAP_KEY: 6204663bf57fdce1c0a9fb533ed05e58
     ports:
       - "5000:5000"
     volumes:
