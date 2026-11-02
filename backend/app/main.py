@@ -1,3 +1,4 @@
+import asyncio
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -45,6 +46,17 @@ async def lifespan(app: FastAPI):
         print("⏰ [Scheduler] APScheduler started for NASA FIRMS sync (scheduled daily at 04:00 & 16:00 WIB / Asia/Jakarta).")
     except Exception as e:
         print(f"⚠️ [Scheduler Warning] Failed to start APScheduler: {e}")
+
+    # Auto-fetch FIRMS data on startup in background (non-blocking)
+    async def initial_startup_sync():
+        try:
+            print("🚀 [Startup Sync] Starting initial NASA FIRMS auto-fetch in background...")
+            res = await sync_nasa_firms_data(day_range=5)
+            print(f"✅ [Startup Sync Finished] Result: {res.get('message', 'Completed')}")
+        except Exception as e_sync:
+            print(f"⚠️ [Startup Sync Error] Initial auto-fetch failed: {e_sync}")
+
+    asyncio.create_task(initial_startup_sync())
 
     yield
 

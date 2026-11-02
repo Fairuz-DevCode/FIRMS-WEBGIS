@@ -18,6 +18,7 @@ yarn-error.log*
 
 # Environment Variables & Secrets
 .env
+.env.*
 *.env
 !.env.example
 

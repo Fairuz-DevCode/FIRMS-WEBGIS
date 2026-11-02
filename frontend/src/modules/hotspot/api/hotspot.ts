@@ -1,14 +1,7 @@
 import { SensorType, HotspotMatrixRow, HotspotApiResponse } from '../../../types/hotspot';
+import { getApiBaseUrl } from '../../../shared/utils/api';
 
-const getBackendBaseUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    // If running in browser and accessed through Nginx (port 3000 or standard web port)
-    if (window.location.port === '3000' || !window.location.port) {
-      return '';
-    }
-  }
-  return (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
-};
+const getBackendBaseUrl = getApiBaseUrl;
 
 export interface FetchHotspotsParams {
   sensor: SensorType;

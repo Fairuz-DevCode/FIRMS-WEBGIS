@@ -4,9 +4,9 @@ services:
     container_name: firms_postgres_db
     restart: always
     environment:
-      POSTGRES_DB: firms_db
-      POSTGRES_USER: firms_user
-      POSTGRES_PASSWORD: firms_password
+      POSTGRES_DB: ${DB_NAME:-firms_db}
+      POSTGRES_USER: ${DB_USER:-firms_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-firms_password}
     ports:
       - "5433:5432"
     volumes:
@@ -27,16 +27,18 @@ services:
       dockerfile: Dockerfile
     container_name: firms_backend
     restart: always
+    env_file:
+      - .env
     environment:
-      PORT: 5000
-      DB_HOST: db
-      DB_USER: firms_user
-      DB_PASSWORD: firms_password
-      DB_NAME: firms_db
-      DB_PORT: 5432
-      DATABASE_URL: postgresql+psycopg2://firms_user:firms_password@db:5432/firms_db
-      ASYNC_DATABASE_URL: postgresql+asyncpg://firms_user:firms_password@db:5432/firms_db
-      MAP_KEY: 6204663bf57fdce1c0a9fb533ed05e58
+      PORT: ${PORT:-5000}
+      DB_HOST: ${DB_HOST:-db}
+      DB_USER: ${DB_USER:-firms_user}
+      DB_PASSWORD: ${DB_PASSWORD:-firms_password}
+      DB_NAME: ${DB_NAME:-firms_db}
+      DB_PORT: ${DB_PORT:-5432}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://firms_user:firms_password@db:5432/firms_db}
+      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL:-postgresql+asyncpg://firms_user:firms_password@db:5432/firms_db}
+      MAP_KEY: ${MAP_KEY:-}
     ports:
       - "5000:5000"
     volumes:
@@ -57,20 +59,6 @@ services:
       - "3000:80"
     depends_on:
       - backend
-    networks:
-      - firms_net
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: firms_pgadmin
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
     networks:
       - firms_net
 

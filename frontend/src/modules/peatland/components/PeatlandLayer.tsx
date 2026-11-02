@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { GeoJSON } from "react-leaflet";
 import { Layer, PathOptions } from "leaflet";
+import { getApiBaseUrl } from "../../../shared/utils/api";
 import {
   PeatlandFeatureCollection,
   PeatlandProperties,
@@ -30,9 +31,7 @@ export const PeatlandLayer: React.FC<
 
     const loadPeatlandData = async () => {
       try {
-        const backendUrl =
-          (import.meta as any).env?.VITE_API_URL ||
-          "http://localhost:5000";
+        const backendUrl = getApiBaseUrl();
         const apiRes = await fetch(
           `${backendUrl}/api/peatland`,
         );

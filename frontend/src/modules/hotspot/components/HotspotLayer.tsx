@@ -336,6 +336,7 @@ function HeatmapOverlay({ hotspots }: { hotspots: HotspotMatrixRow[] }) {
 }
 
 import { SelectedHotspotAnalytics } from '../../../map/components/HotspotAnalyticsSidebar';
+import { getApiBaseUrl } from '../../../shared/utils/api';
 
 interface HotspotLayerProps {
   sensor?: SensorType;
@@ -533,7 +534,7 @@ export default function HotspotLayer({
             }
 
             try {
-              const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+              const backendUrl = getApiBaseUrl();
               
               // 1. Fetch climate, peatland, and spatial cluster context from backend PostGIS
               const targetDate = leafProps.rawRow[HOTSPOT_COL.ACQ_DATE] || '';

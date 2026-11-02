@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { getApiBaseUrl } from '../../shared/utils/api';
 
 /**
  * Returns true if the given [lng, lat] coordinate is within Indonesian territory.
@@ -63,7 +64,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
       ? '/api/rainfall?limit=20000' 
       : (type === 'soil_moisture' ? '/api/soil-moisture?limit=20000' : '/api/temperature?limit=20000');
 
-    const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+    const backendUrl = getApiBaseUrl();
 
     fetch(`${backendUrl}${endpoint}`)
       .then(res => res.json())

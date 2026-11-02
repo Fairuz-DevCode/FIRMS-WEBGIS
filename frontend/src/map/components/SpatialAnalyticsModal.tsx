@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getApiBaseUrl } from '../../shared/utils/api';
 import { X, Flame, AlertTriangle, TrendingUp, MapPin, BarChart3, ShieldAlert } from 'lucide-react';
 
 interface AnalyticsData {
@@ -56,7 +57,8 @@ export const SpatialAnalyticsModal: React.FC<SpatialAnalyticsModalProps> = ({
       setError(null);
       try {
         const queryParam = currentDate ? `?date=${currentDate}` : '';
-        const res = await fetch(`http://localhost:5000/api/analytics/summary${queryParam}`);
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/api/analytics/summary${queryParam}`);
         if (!res.ok) throw new Error('Gagal mengambil data analitik spasial');
         const json = await res.json();
         setData(json);

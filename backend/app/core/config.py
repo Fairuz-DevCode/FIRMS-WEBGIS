@@ -7,9 +7,9 @@ class Settings(BaseSettings):
     DB_PORT: int = 5432
 
     DB_USER: str = "firms_user"
-    DB_PASSWORD: str = "firms_password"
+    DB_PASSWORD: str = ""
     DB_NAME: str = "firms_db"
-    MAP_KEY: str = "6204663bf57fdce1c0a9fb533ed05e58" 
+    MAP_KEY: str = ""
 
     @property
     def DATABASE_URL(self) -> str:

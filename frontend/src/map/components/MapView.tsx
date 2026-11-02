@@ -27,6 +27,7 @@ import SatelliteStatsWidget from './SatelliteStatsWidget';
 import NavbarControls from './NavbarControls';
 import HotspotAnalyticsSidebar, { SelectedHotspotAnalytics } from './HotspotAnalyticsSidebar';
 import { isPointInPeatlands, preparePeatlandPolygons, PreparedPolygon } from '../../shared/utils/spatial.utils';
+import { getApiBaseUrl } from '../../shared/utils/api';
 
 // Indonesia bounds & default center
 const INDONESIA_CENTER: [number, number] = [-0.7893, 113.9213];
@@ -127,7 +128,7 @@ export const MapView: React.FC = () => {
     let isMounted = true;
     const fetchLatestDate = async () => {
       try {
-        const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+        const backendUrl = getApiBaseUrl();
         const res = await fetch(`${backendUrl}/api/hotspots/stats`);
         if (res.ok) {
           const json = await res.json();
@@ -154,7 +155,7 @@ export const MapView: React.FC = () => {
     let isMounted = true;
     const fetchPeatland = async () => {
       try {
-        const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+        const backendUrl = getApiBaseUrl();
         const res = await fetch(`${backendUrl}/api/peatland`);
         if (res.ok) {
           const geojson = await res.json();
