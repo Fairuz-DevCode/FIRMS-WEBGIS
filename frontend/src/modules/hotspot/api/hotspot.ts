@@ -1,4 +1,4 @@
-import { SensorType, HotspotMatrixRow, HotspotApiResponse } from '../../../types/hotspot';
+import { SensorType, HotspotMatrixRow, HotspotApiResponse } from '../types/hotspot.types';
 import { getApiBaseUrl } from '../../../shared/utils/api';
 
 const getBackendBaseUrl = getApiBaseUrl;

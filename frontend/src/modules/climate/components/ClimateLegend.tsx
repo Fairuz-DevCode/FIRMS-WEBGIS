@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronUp, ChevronDown, Info } from 'lucide-react';
 import { ClimateType } from './ClimateLayer';
-import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES, ClimateLegendCategory } from '../../shared/constants/climate.constants';
+import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES, ClimateLegendCategory } from '../../../map/constants/climate.constants';
 
 interface ClimateLegendProps {
   type: ClimateType;
@@ -15,7 +15,10 @@ export const ClimateLegend: React.FC<ClimateLegendProps> = ({
   opacity,
   onOpacityChange,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  // Default collapsed on mobile screens (< 768px) to prevent screen overcrowding
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
 
   let title = '';
   let unit = '';

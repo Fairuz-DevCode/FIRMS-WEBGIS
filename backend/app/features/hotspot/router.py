@@ -86,3 +86,20 @@ async def trigger_hotspot_sync(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to execute NASA FIRMS sync: {str(e)}")
+
+@router.post("/hotspots/sync-climate")
+async def trigger_hotspot_climate_sync(
+    date: Optional[str] = Query(None, description="Tanggal akuisisi hotspot YYYY-MM-DD (opsional, default: tanggal terbaru)"),
+    precision: int = Query(2, ge=1, le=4, description="Presisi pembulatan koordinat untuk deduplikasi spasial (default 2 desimal ~1km)")
+):
+    """
+    Trigger sinkronisasi iklim dinamis (Suhu, Curah Hujan, Kelembapan Tanah)
+    untuk seluruh koordinat hotspot aktif ke Open-Meteo API dan disimpan ke tabel masing-masing.
+    """
+    try:
+        from app.features.hotspot.climate_sync import sync_all_climate_for_hotspots
+        res = await sync_all_climate_for_hotspots(target_date=date, precision=precision)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to execute dynamic climate sync: {str(e)}")
+

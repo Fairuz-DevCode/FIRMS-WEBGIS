@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchHotspots } from '../api/hotspot';
-import { SensorType, HotspotMatrixRow, HotspotMeta } from '../../../types/hotspot';
+import { SensorType, HotspotMatrixRow, HotspotMeta } from '../types/hotspot.types';
 
 interface UseHotspotsResult {
   hotspots: HotspotMatrixRow[];

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Flame, 
@@ -10,26 +10,11 @@ import {
   Compass, 
   UserCheck, 
   Trees, 
-  Layers 
+  Layers,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
-import { HotspotMatrixRow, HOTSPOT_COL } from '../../types/hotspot';
-
-export interface SelectedHotspotAnalytics {
-  row: HotspotMatrixRow;
-  sensor: string;
-  isPeatland: boolean;
-  province?: string;
-  landCoverClass?: string;
-  cluster?: {
-    nearby_count: number;
-    nearest_neighbor_km: number;
-    radius_km: number;
-  };
-  rainfall?: { value: number; category: string };
-  soilMoisture?: { value: number; category: string };
-  temperature?: { value: number; category: string };
-  loading?: boolean;
-}
+import { HotspotMatrixRow, HOTSPOT_COL, SelectedHotspotAnalytics } from '../types/hotspot.types';
 
 interface HotspotAnalyticsSidebarProps {
   data: SelectedHotspotAnalytics | null;
@@ -40,6 +25,12 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
   data,
   onClose,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [data?.row[HOTSPOT_COL.LAT], data?.row[HOTSPOT_COL.LNG]]);
+
   if (!data) return null;
 
   const lat = data.row[HOTSPOT_COL.LAT];
@@ -145,32 +136,112 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
   const humanStrokeDash = (humanPct / 100) * circumference;
 
   return (
-    <aside className="absolute top-0 right-0 z-[1200] h-full w-[410px] max-w-[94vw] flex flex-col bg-white shadow-[-8px_0_28px_rgba(0,0,0,0.18)] border-l border-slate-200 animate-in slide-in-from-right duration-200">
-      
-      {/* Header Sidebar */}
-      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-5 py-4 text-white shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30">
-            <Flame className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold leading-tight">Analisis Data Spasial Titik Api</h2>
-            <p className="text-[11px] text-slate-300">
-              {data.province || 'Indonesia'} • {acq_date} {acq_time} UTC
-            </p>
+    <>
+      {/* Mobile backdrop: hanya muncul jika sheet di-expand penuh agar mudah ditutup */}
+      {isExpanded && (
+        <div 
+          className="fixed inset-0 z-[1300] bg-slate-950/40 backdrop-blur-xs md:hidden animate-in fade-in duration-200"
+          onClick={() => setIsExpanded(false)}
+        />
+      )}
+
+      <aside className={`fixed inset-x-0 bottom-0 z-[1400] w-full flex flex-col rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-300 ease-in-out md:absolute md:inset-x-auto md:top-0 md:right-0 md:bottom-0 md:h-full md:max-h-full md:w-[410px] md:rounded-none md:border-t-0 md:border-l md:shadow-[-8px_0_28px_rgba(0,0,0,0.18)] md:slide-in-from-right ${
+        isExpanded ? 'max-h-[85vh] h-[85vh]' : 'max-h-[220px]'
+      }`}>
+        {/* Mobile handle indicator & toggle bar */}
+        <div 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex flex-col items-center justify-center pt-2 pb-1 md:hidden bg-gradient-to-r from-prims-900 via-prims-800 to-prims-900 rounded-t-2xl cursor-pointer select-none active:brightness-110 transition-all border-b border-white/10"
+        >
+          <div className="w-10 h-1 bg-emerald-400/60 rounded-full mb-1" />
+          <div className="flex items-center gap-1 text-[9px] text-emerald-100 font-medium">
+            <span>{isExpanded ? 'Ketuk untuk perkecil' : 'Tarik ke atas / ketuk untuk detail lengkap'}</span>
+            {isExpanded ? <ChevronDown className="h-2.5 w-2.5 text-emerald-200" /> : <ChevronUp className="h-2.5 w-2.5 text-emerald-300" />}
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
-          title="Tutup Analisis"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
 
-      {/* Body Content */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs text-slate-700">
+        {/* Header Sidebar */}
+        <div className="flex items-center justify-between border-b border-white/15 bg-gradient-to-r from-prims-900 via-prims-800 to-prims-900 px-3.5 py-2 sm:px-5 sm:py-3.5 text-white shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 shrink-0">
+              <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </div>
+            <div>
+              <h2 className="text-xs sm:text-sm font-bold leading-tight">Analisis Data Spasial Titik Api</h2>
+              <p className="text-[10px] sm:text-[11px] text-emerald-100/80 truncate max-w-[190px] sm:max-w-none">
+                {data.province || 'Indonesia'} • {acq_date} {acq_time} UTC
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex md:hidden h-7 w-7 items-center justify-center rounded-lg text-emerald-200 hover:bg-white/15 hover:text-white transition-colors"
+              title={isExpanded ? "Perkecil panel" : "Perbesar panel"}
+            >
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-200 hover:bg-white/15 hover:text-white transition-colors"
+              title="Tutup Analisis"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Compact Mobile Summary (Hanya muncul di mobile saat panel belum di-expand) */}
+        {!isExpanded && (
+          <div className="p-2.5 space-y-2 md:hidden overflow-hidden">
+            <div className="flex items-center justify-between gap-2.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+              {/* Mini Donut */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center shrink-0">
+                  <svg width="46" height="46" viewBox="0 0 80 80" className="-rotate-90">
+                    <circle cx="40" cy="40" r={radius} fill="transparent" stroke="#16a34a" strokeWidth="12" strokeDasharray={circumference} strokeDashoffset="0" />
+                    <circle cx="40" cy="40" r={radius} fill="transparent" stroke="#ea580c" strokeWidth="12" strokeDasharray={`${humanStrokeDash} ${circumference}`} strokeDashoffset="0" />
+                  </svg>
+                  <div className="absolute flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-black text-slate-900 leading-none">{humanPct}%</span>
+                  </div>
+                </div>
+                <div className="text-[11px] leading-tight">
+                  <div className="font-bold text-slate-800 flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-orange-600 inline-block" />
+                    <span>Ulah Manusia</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    {nearbyPoints > 0 ? `${nearbyPoints} titik di 15km` : 'Titik terisolasi'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Skor Risiko & Status Gambut */}
+              <div className="text-right flex flex-col items-end">
+                <span className={`px-2 py-0.5 rounded-md border font-bold text-[10px] ${riskBg}`}>
+                  {riskCategory} ({totalRiskScore}/100)
+                </span>
+                <span className="text-[10px] text-slate-500 mt-1 font-medium truncate max-w-[120px]">
+                  {data.isPeatland ? '🌾 Lahan Gambut' : 'Tanah Mineral'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsExpanded(true)}
+              className="w-full py-1.5 rounded-lg bg-gradient-to-r from-prims-900 to-prims-800 text-white font-semibold text-[11px] flex items-center justify-center gap-1.5 shadow-sm active:scale-98 transition-all hover:brightness-110"
+            >
+              <span>Lihat Detail Forensik & Iklim</span>
+              <ChevronUp className="h-3.5 w-3.5 text-emerald-300" />
+            </button>
+          </div>
+        )}
+
+        {/* Full Scrollable Body (Desktop selalu tampil, mobile tampil saat di-expand) */}
+        <div className={`${!isExpanded ? 'hidden md:block' : 'block'} flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-3 sm:space-y-4 text-xs text-slate-700`}>
         
         {/* Loading overlay if fetching */}
         {data.loading && (
@@ -194,13 +265,13 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
           <div className="flex items-center gap-4 bg-white p-3 rounded-lg border border-slate-200/80">
             <div className="relative flex items-center justify-center shrink-0">
               <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-                {/* Background circle */}
+                {/* Background circle: Faktor Alami (Hijau Alami / Forest Theme) */}
                 <circle
                   cx="40"
                   cy="40"
                   r={radius}
                   fill="transparent"
-                  stroke="#38bdf8"
+                  stroke="#16a34a"
                   strokeWidth="11"
                   strokeDasharray={circumference}
                   strokeDashoffset="0"
@@ -234,10 +305,10 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                  <span className="h-2.5 w-2.5 rounded-full bg-sky-400 inline-block" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" />
                   Faktor Alami:
                 </span>
-                <strong className="text-sky-700 font-bold">{naturalPct}%</strong>
+                <strong className="text-emerald-700 font-bold">{naturalPct}%</strong>
               </div>
               <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-100">
                 *Dominasi aktivitas pembersihan lahan (land clearing).
@@ -301,7 +372,7 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
         {/* 3. ANALISIS KEDEKATAN SPASIAL & KLUSTER (PROXIMITY) */}
         <div className="rounded-xl border border-slate-200 p-4 bg-white shadow-sm space-y-2">
           <div className="font-bold text-slate-900 border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
-            <Layers className="h-3.5 w-3.5 text-blue-600" />
+            <Layers className="h-3.5 w-3.5 text-emerald-600" />
             Analisis Kluster & Kedekatan Spasial
           </div>
 
@@ -367,17 +438,30 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
       </div>
 
       {/* Footer Sidebar */}
-      <div className="border-t border-slate-200 bg-slate-50 px-5 py-3 flex justify-between items-center text-[11px] text-slate-500 shrink-0">
+      <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5 sm:px-5 sm:py-3 flex justify-between items-center text-[10px] sm:text-[11px] text-slate-500 shrink-0">
         <span>*PostGIS Spatial Analysis & ERA5</span>
-        <button
-          onClick={onClose}
-          className="px-3 py-1 rounded-md border border-slate-300 bg-white font-medium text-slate-700 hover:bg-slate-100"
-        >
-          Tutup
-        </button>
+        <div className="flex items-center gap-2">
+          {isExpanded && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              className="md:hidden px-2.5 py-1 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 active:scale-95 transition-all text-xs flex items-center gap-1"
+            >
+              <ChevronDown className="h-3 w-3" />
+              Perkecil
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 active:scale-95 transition-all text-xs"
+          >
+            Tutup
+          </button>
+        </div>
       </div>
 
     </aside>
+  </>
   );
 };
 

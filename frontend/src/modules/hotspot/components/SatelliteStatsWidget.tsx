@@ -1,6 +1,6 @@
-import React from 'react';
-import { Radio } from 'lucide-react';
-import { HOTSPOT_COL, HotspotMatrixRow, SensorType } from '../../types/hotspot';
+import React, { useState } from 'react';
+import { Radio, ChevronDown, ChevronUp } from 'lucide-react';
+import { HOTSPOT_COL, HotspotMatrixRow, SensorType } from '../types/hotspot.types';
 
 interface SatelliteStatsProps {
   hotspots?: HotspotMatrixRow[] | any[];
@@ -45,6 +45,8 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
   hotspots = [],
   currentSensor = 'VIIRS_SNPP_NRT',
 }) => {
+  const [isExpandedMobile, setIsExpandedMobile] = useState<boolean>(false);
+
   const { snpp, terraAqua, noaa20, noaa21 } = React.useMemo(() => {
     const s: Counter = { low: 0, med: 0, high: 0, total: 0 };
     const ta: Counter = { low: 0, med: 0, high: 0, total: 0 };
@@ -100,16 +102,61 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
   }, [hotspots, currentSensor]);
 
   return (
-    <div className="flex flex-col select-none gap-2 rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md min-w-[260px] text-xs text-slate-800">
-      <div className="flex items-center gap-1.5 border-b border-slate-200 pb-1.5 text-[0.68rem] font-bold uppercase tracking-wider text-slate-500">
-        <Radio className="h-3.5 w-3.5 text-green-600" />
-        <span>Data Satelit NASA FIRMS</span>
-      </div>
+    <div className="w-full">
+      {/* 1. Mobile Compact Pill Bar (Hanya tampil di layar HP jika sedang collapsed) */}
+      {!isExpandedMobile && (
+        <button
+          type="button"
+          onClick={() => setIsExpandedMobile(true)}
+          className="flex md:hidden w-full items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-md backdrop-blur-md text-xs select-none active:scale-98 transition-all"
+        >
+          <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+            <Radio className="h-3 w-3 text-emerald-600 animate-pulse" />
+            <span>FIRMS</span>
+          </div>
 
-      <StatRow title="VIIRS S-NPP (375m)" data={snpp} withTitles />
-      {terraAqua.total > 0 && <StatRow title="NASA-TERRA/AQUA" data={terraAqua} />}
-      {noaa20.total > 0 && <StatRow title="NASA-NOAA20" data={noaa20} />}
-      {noaa21.total > 0 && <StatRow title="NASA-NOAA21" data={noaa21} />}
+          <div className="flex items-center gap-2 font-mono text-[11px] font-bold">
+            <span className="text-green-600">● {snpp.low}</span>
+            <span className="text-yellow-600">● {snpp.med}</span>
+            <span className="text-red-600">● {snpp.high}</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="font-extrabold text-slate-900 text-xs bg-slate-100 px-1.5 py-0.5 rounded">
+              {snpp.total}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+          </div>
+        </button>
+      )}
+
+      {/* 2. Full Expanded Card (Selalu tampil di desktop md:flex, atau di mobile saat di-expand) */}
+      <div
+        className={`${
+          isExpandedMobile ? 'flex' : 'hidden md:flex'
+        } flex-col select-none gap-2 rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md min-w-[260px] text-xs text-slate-800 transition-all`}
+      >
+        <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 text-[0.68rem] font-bold uppercase tracking-wider text-slate-500">
+          <div className="flex items-center gap-1.5">
+            <Radio className="h-3.5 w-3.5 text-green-600" />
+            <span>Data Satelit NASA FIRMS</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsExpandedMobile(false)}
+            className="md:hidden p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
+            
+            title="Kecilkan widget"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        </div>
+
+        <StatRow title="VIIRS S-NPP (375m)" data={snpp} withTitles />
+        {terraAqua.total > 0 && <StatRow title="NASA-TERRA/AQUA" data={terraAqua} />}
+        {noaa20.total > 0 && <StatRow title="NASA-NOAA20" data={noaa20} />}
+        {noaa21.total > 0 && <StatRow title="NASA-NOAA21" data={noaa21} />}
+      </div>
     </div>
   );
 };

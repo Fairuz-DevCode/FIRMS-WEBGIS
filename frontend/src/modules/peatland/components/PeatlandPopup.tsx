@@ -1,6 +1,6 @@
 import React from 'react';
 import { Popup } from 'react-leaflet';
-import { PeatlandProperties } from '../../../types/peatland';
+import { PeatlandProperties } from '../types/peatland.types';
 
 interface PeatlandPopupProps {
   properties: PeatlandProperties;

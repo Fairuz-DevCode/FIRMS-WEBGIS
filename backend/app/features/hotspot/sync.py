@@ -199,6 +199,16 @@ async def sync_nasa_firms_data(
             except Exception as e_enrich:
                 print(f"⚠️ [FIRMS Sync Warning] Spatial enrichment skipped/failed: {e_enrich}")
 
+            # Otomatis sync iklim dinamis (suhu, hujan, kelembapan) untuk hotspot baru yang baru diinsert
+            if filtered_records:
+                try:
+                    from app.features.hotspot.climate_sync import sync_all_climate_for_hotspots
+                    new_coords = [(float(r["latitude"]), float(r["longitude"])) for r in filtered_records]
+                    print(f"🌤️ [FIRMS Sync] Memulai sinkronisasi iklim dinamis untuk {len(new_coords)} hotspot baru...")
+                    await sync_all_climate_for_hotspots(coordinates=new_coords)
+                except Exception as e_climate:
+                    print(f"⚠️ [FIRMS Sync Warning] Sinkronisasi iklim dinamis gagal: {e_climate}")
+
             return {
                 "status": "success",
                 "message": f"Successfully processed {len(records_to_insert)} records from {len(target_sources)} satellites ({inserted_count} new inserted).",

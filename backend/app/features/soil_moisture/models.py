@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, DateTime
+from sqlalchemy import Column, Integer, Float, DateTime, Boolean
 from geoalchemy2 import Geometry
 from app.core.database import Base
 
@@ -10,7 +10,7 @@ class SoilMoisture(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     soil_moisture = Column(Float, nullable=True)
-    
+    is_indonesia = Column(Boolean, default=True, nullable=True)
     geom = Column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
 
     def to_flat_array(self) -> list:

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { getApiBaseUrl } from '../../shared/utils/api';
+import { getApiBaseUrl } from '../../../shared/utils/api';
 
 /**
  * Returns true if the given [lng, lat] coordinate is within Indonesian territory.
@@ -14,7 +14,8 @@ function isInIndonesia(lng: number, lat: number): boolean {
   return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
 }
 
-export type ClimateType = 'rainfall' | 'soil_moisture' | 'temperature';
+import { ClimateType } from '../types/climate.types';
+export type { ClimateType };
 
 interface ClimateLayerProps {
   type: ClimateType;
@@ -33,7 +34,7 @@ import {
   getRainfallColor, 
   getSoilMoistureColor, 
   getTemperatureColor 
-} from '../../shared/constants/climate.constants';
+} from '../../../map/constants/climate.constants';
 
 function getGridColorRgba(type: ClimateType, val: number): [number, number, number, number] {
   let hex = '#38bdf8';
@@ -115,6 +116,11 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     const imgData = ctx.createImageData(cols, rows);
     const pixels = imgData.data;
 
+    // Adaptive kernel radius based on data density
+    // If dense ERA5 dataset (>10,000 points, step ~0.1 deg), point radius = 0 (single pixel).
+    // If dynamic grid (~1,000-3,000 points, step ~0.5 deg), point radius = 3 pixels so adjacent points blend seamlessly.
+    const radius = data.length < 5000 ? 3 : 0;
+
     // Map each data point into the continuous grid surface
     for (let i = 0; i < data.length; i++) {
       const [lat, lng, val] = data[i];
@@ -129,12 +135,29 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
       if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
 
       const [r, g, b, a] = getGridColorRgba(type, val);
-      const pixelIdx = (y * cols + x) * 4;
 
-      pixels[pixelIdx] = r;
-      pixels[pixelIdx + 1] = g;
-      pixels[pixelIdx + 2] = b;
-      pixels[pixelIdx + 3] = a;
+      if (radius === 0) {
+        const pixelIdx = (y * cols + x) * 4;
+        pixels[pixelIdx] = r;
+        pixels[pixelIdx + 1] = g;
+        pixels[pixelIdx + 2] = b;
+        pixels[pixelIdx + 3] = a;
+      } else {
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+            if (dx * dx + dy * dy <= radius * radius) {
+              const pixelIdx = (ny * cols + nx) * 4;
+              pixels[pixelIdx] = r;
+              pixels[pixelIdx + 1] = g;
+              pixels[pixelIdx + 2] = b;
+              pixels[pixelIdx + 3] = a;
+            }
+          }
+        }
+      }
     }
 
     ctx.putImageData(imgData, 0, 0);

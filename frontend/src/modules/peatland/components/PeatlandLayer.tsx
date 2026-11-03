@@ -5,7 +5,7 @@ import { getApiBaseUrl } from "../../../shared/utils/api";
 import {
   PeatlandFeatureCollection,
   PeatlandProperties,
-} from "../../../types/peatland";
+} from "../types/peatland.types";
 
 export const peatlandStyle: PathOptions = {
   color: "#CD853F", // Dark Orange / Amber border

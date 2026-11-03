@@ -9,7 +9,7 @@ if (typeof window !== 'undefined') {
 }
 import 'leaflet.heat';
 
-import { HotspotMatrixRow, SensorType, HOTSPOT_COL } from '../../../types/hotspot';
+import { HotspotMatrixRow, SensorType, HOTSPOT_COL, SelectedHotspotAnalytics } from '../types/hotspot.types';
 import { useHotspots } from '../hooks/useHotspots';
 import { isPointInPeatlands } from '../../../shared/utils/spatial.utils';
 
@@ -335,7 +335,6 @@ function HeatmapOverlay({ hotspots }: { hotspots: HotspotMatrixRow[] }) {
   return null;
 }
 
-import { SelectedHotspotAnalytics } from '../../../map/components/HotspotAnalyticsSidebar';
 import { getApiBaseUrl } from '../../../shared/utils/api';
 
 interface HotspotLayerProps {
@@ -535,56 +534,37 @@ export default function HotspotLayer({
 
             try {
               const backendUrl = getApiBaseUrl();
-              
-              // 1. Fetch climate, peatland, and spatial cluster context from backend PostGIS
               const targetDate = leafProps.rawRow[HOTSPOT_COL.ACQ_DATE] || '';
-              const climatePromise = fetch(`${backendUrl}/api/hotspots/context?lat=${lat}&lng=${lng}&date=${targetDate}`)
+
+              // 1. Fetch climate, peatland, and spatial cluster context from backend PostGIS (Super Fast ~10ms)
+              const climateData = await fetch(`${backendUrl}/api/hotspots/context?lat=${lat}&lng=${lng}&date=${targetDate}`)
                 .then(r => r.ok ? r.json() : null)
                 .catch(() => null);
-
-              // 2. Query Esri Sentinel-2 Land Cover identify REST service
-              const esriIdentifyUrl = `https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/identify?geometry=%7Bx%3A${lng}%2Cy%3A${lat}%2CspatialReference%3A%7Bwkid%3A4326%7D%7D&geometryType=esriGeometryPoint&f=json`;
-              const landCoverPromise = fetch(esriIdentifyUrl)
-                .then(r => r.ok ? r.json() : null)
-                .catch(() => null);
-
-              const [climateData, landCoverData] = await Promise.all([climatePromise, landCoverPromise]);
-
-              let detectedLandCover: string | undefined = undefined;
-              if (landCoverData && landCoverData.value) {
-                const valNum = parseInt(String(landCoverData.value), 10);
-                if (ESRI_LAND_COVER_CLASSES[valNum]) {
-                  detectedLandCover = ESRI_LAND_COVER_CLASSES[valNum].label;
-                } else if (landCoverData.value !== 'NoData') {
-                  detectedLandCover = `Kelas ${landCoverData.value}`;
-                }
-              }
 
               const isPointPeat = climateData?.is_peatland ?? isPeat;
-              const pointLandCover = detectedLandCover || (baseContext.landCoverClass || 'Vegetasi / Lahan Terbuka');
               const pointRainfall = climateData?.rainfall ? { value: climateData.rainfall.value, category: climateData.rainfall.category } : undefined;
               const pointSoilMoisture = climateData?.soil_moisture ? { value: climateData.soil_moisture.value, category: climateData.soil_moisture.category } : undefined;
               const pointTemperature = climateData?.temperature ? { value: climateData.temperature.value, category: climateData.temperature.category } : undefined;
 
-              const updatedContext: ActiveLayersContext = {
+              // Immediately update popup & sidebar so the user doesn't wait for external Esri
+              let currentContext: ActiveLayersContext = {
                 ...baseContext,
                 isPeatland: isPointPeat,
-                landCoverClass: pointLandCover,
+                landCoverClass: baseContext.landCoverClass || 'Vegetasi / Lahan Terbuka',
                 rainfall: pointRainfall,
                 soilMoisture: pointSoilMoisture,
                 temperature: pointTemperature,
               };
 
-              circleMarker.setPopupContent(createPopupContent(leafProps.rawRow, sensor, updatedContext));
+              circleMarker.setPopupContent(createPopupContent(leafProps.rawRow, sensor, currentContext));
 
-              // Update sidebar analytics data
               if (onSelectHotspot) {
                 onSelectHotspot({
                   row: leafProps.rawRow,
                   sensor,
                   isPeatland: isPointPeat,
                   province: climateData?.province || 'Indonesia',
-                  landCoverClass: pointLandCover,
+                  landCoverClass: currentContext.landCoverClass,
                   cluster: climateData?.cluster,
                   rainfall: pointRainfall,
                   soilMoisture: pointSoilMoisture,
@@ -592,6 +572,51 @@ export default function HotspotLayer({
                   loading: false
                 });
               }
+
+              // 2. Query Esri Sentinel-2 in the background with a 3.5s timeout (Non-blocking)
+              const esriIdentifyUrl = `https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/identify?geometry=%7Bx%3A${lng}%2Cy%3A${lat}%2CspatialReference%3A%7Bwkid%3A4326%7D%7D&geometryType=esriGeometryPoint&f=json`;
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+              fetch(esriIdentifyUrl, { signal: controller.signal })
+                .then(r => r.ok ? r.json() : null)
+                .then(landCoverData => {
+                  clearTimeout(timeoutId);
+                  if (landCoverData && landCoverData.value) {
+                    const valNum = parseInt(String(landCoverData.value), 10);
+                    let detectedLandCover: string | undefined = undefined;
+                    if (ESRI_LAND_COVER_CLASSES[valNum]) {
+                      detectedLandCover = ESRI_LAND_COVER_CLASSES[valNum].label;
+                    } else if (landCoverData.value !== 'NoData') {
+                      detectedLandCover = `Kelas ${landCoverData.value}`;
+                    }
+
+                    if (detectedLandCover) {
+                      currentContext = {
+                        ...currentContext,
+                        landCoverClass: detectedLandCover
+                      };
+                      circleMarker.setPopupContent(createPopupContent(leafProps.rawRow, sensor, currentContext));
+                      if (onSelectHotspot) {
+                        onSelectHotspot({
+                          row: leafProps.rawRow,
+                          sensor,
+                          isPeatland: isPointPeat,
+                          province: climateData?.province || 'Indonesia',
+                          landCoverClass: detectedLandCover,
+                          cluster: climateData?.cluster,
+                          rainfall: pointRainfall,
+                          soilMoisture: pointSoilMoisture,
+                          temperature: pointTemperature,
+                          loading: false
+                        });
+                      }
+                    }
+                  }
+                })
+                .catch(() => {
+                  // Silently ignore Esri timeout or network failure
+                });
             } catch (e) {
               console.warn('[HotspotLayer] Context fetch error:', e);
               if (onSelectHotspot) {

@@ -56,3 +56,20 @@ export interface HotspotProperties {
   frp: number;
   daynight?: string;
 }
+
+export interface SelectedHotspotAnalytics {
+  row: HotspotMatrixRow;
+  sensor: string;
+  isPeatland: boolean;
+  province?: string;
+  landCoverClass?: string;
+  cluster?: {
+    nearby_count: number;
+    nearest_neighbor_km: number;
+    radius_km: number;
+  };
+  rainfall?: { value: number; category: string };
+  soilMoisture?: { value: number; category: string };
+  temperature?: { value: number; category: string };
+  loading?: boolean;
+}

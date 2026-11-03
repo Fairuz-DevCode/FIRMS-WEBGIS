@@ -1,9 +1,5 @@
-export interface LandCoverClass {
-  value: number;
-  label: string;
-  color: string;
-  description: string;
-}
+import { LandCoverClass, LandCoverProvider, LandCoverProviderConfig } from '../types/landCover.types';
+export type { LandCoverClass, LandCoverProvider, LandCoverProviderConfig };
 
 export const ESRI_LAND_COVER_CLASSES: Record<number, LandCoverClass> = {
   1: {
@@ -61,18 +57,6 @@ export const ESRI_LAND_COVER_CLASSES: Record<number, LandCoverClass> = {
     description: 'Semak belukar, rangeland, savanna, dan rumput liat',
   },
 };
-
-export type LandCoverProvider = 'esri_sentinel2' | 'esa_worldcover' | 'local_geotiff';
-
-export interface LandCoverProviderConfig {
-  id: LandCoverProvider;
-  name: string;
-  description: string;
-  resolution: string;
-  wmsUrl?: string;
-  layerName?: string;
-  attribution: string;
-}
 
 export const LAND_COVER_PROVIDERS: Record<LandCoverProvider, LandCoverProviderConfig> = {
   esri_sentinel2: {

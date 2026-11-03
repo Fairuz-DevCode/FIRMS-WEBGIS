@@ -292,6 +292,7 @@ async def get_environmental_context_at_point(
                     SELECT suhu_celsius 
                     FROM temperature 
                     WHERE waktu = (SELECT MAX(waktu) FROM temperature)
+                      AND suhu_celsius IS NOT NULL AND suhu_celsius > 5
                     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) 
                     LIMIT 1
                 ) as temperature,
@@ -299,6 +300,7 @@ async def get_environmental_context_at_point(
                     SELECT soil_moisture 
                     FROM soil_moisture_data 
                     WHERE waktu = (SELECT MAX(waktu) FROM soil_moisture_data)
+                      AND soil_moisture IS NOT NULL AND soil_moisture > 0.001
                     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) 
                     LIMIT 1
                 ) as soil_moisture,
@@ -306,6 +308,7 @@ async def get_environmental_context_at_point(
                     SELECT curah_hujan_mm 
                     FROM rainfall_data 
                     WHERE waktu = (SELECT MAX(waktu) FROM rainfall_data)
+                      AND curah_hujan_mm IS NOT NULL
                     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) 
                     LIMIT 1
                 ) as rainfall,
@@ -333,9 +336,9 @@ async def get_environmental_context_at_point(
             nearest_km = float(row.nearest_neighbor_km or 0.0)
 
             # Category labels
-            temp_desc = "Panas Ekstrem" if temp_val and temp_val > 32 else ("Hangat" if temp_val and temp_val >= 26 else "Sejuk")
-            sm_desc = "Sangat Kering (Kritis)" if sm_val and sm_val < 0.2 else ("Cukup Lembab" if sm_val and sm_val <= 0.35 else "Lembab / Jenuh Air")
-            rain_desc = "Kering / Sangat Ringan" if rain_val and rain_val < 5 else ("Hujan Sedang" if rain_val and rain_val <= 20 else "Hujan Lebat")
+            temp_desc = "Panas Ekstrem" if temp_val is not None and temp_val > 32 else ("Hangat" if temp_val is not None and temp_val >= 26 else "Sejuk")
+            sm_desc = "Sangat Kering (Kritis)" if sm_val is not None and sm_val < 0.2 else ("Cukup Lembab" if sm_val is not None and sm_val <= 0.35 else "Lembab / Jenuh Air")
+            rain_desc = "Kering / Sangat Ringan" if rain_val is not None and rain_val < 5 else ("Hujan Sedang" if rain_val is not None and rain_val <= 20 else "Hujan Lebat")
 
             return {
                 "status": "success",

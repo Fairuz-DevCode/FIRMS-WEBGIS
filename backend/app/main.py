@@ -34,25 +34,38 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️ Startup Warning: Database initialization deferred or waiting for container: {e}")
     
-    # Start APScheduler for FIRMS sync (twice a day: 04:00 subuh & 16:00 sore WIB / Asia/Jakarta)
+    # Start APScheduler for FIRMS & Dynamic Climate sync (twice a day: 04:00 subuh & 16:00 sore WIB / Asia/Jakarta)
+    async def scheduled_sync_pipeline():
+        print("⏰ [Scheduler] Memulai pipeline sinkronisasi otomatis (NASA FIRMS + Iklim Dinamis Open-Meteo)...")
+        try:
+            await sync_nasa_firms_data(day_range=5)
+            from app.features.hotspot.climate_sync import sync_all_climate_for_hotspots
+            await sync_all_climate_for_hotspots()
+            print("✅ [Scheduler] Pipeline sinkronisasi otomatis selesai.")
+        except Exception as e_sched:
+            print(f"⚠️ [Scheduler Error] Pipeline sinkronisasi otomatis gagal: {e_sched}")
+
     try:
         scheduler.add_job(
-            sync_nasa_firms_data,
+            scheduled_sync_pipeline,
             CronTrigger(hour="4,16", minute="0", timezone="Asia/Jakarta"),
-            id="nasa_firms_sync_job",
+            id="nasa_firms_and_climate_sync_job",
             replace_existing=True
         )
         scheduler.start()
-        print("⏰ [Scheduler] APScheduler started for NASA FIRMS sync (scheduled daily at 04:00 & 16:00 WIB / Asia/Jakarta).")
+        print("⏰ [Scheduler] APScheduler started: FIRMS & Climate auto-sync scheduled daily at 04:00 & 16:00 WIB (Asia/Jakarta).")
     except Exception as e:
         print(f"⚠️ [Scheduler Warning] Failed to start APScheduler: {e}")
 
-    # Auto-fetch FIRMS data on startup in background (non-blocking)
+    # Auto-fetch FIRMS & Climate data on startup in background (non-blocking)
     async def initial_startup_sync():
         try:
-            print("🚀 [Startup Sync] Starting initial NASA FIRMS auto-fetch in background...")
+            print("🚀 [Startup Sync] Memulai auto-fetch awal NASA FIRMS & Iklim Dinamis di background...")
             res = await sync_nasa_firms_data(day_range=5)
-            print(f"✅ [Startup Sync Finished] Result: {res.get('message', 'Completed')}")
+            print(f"✅ [Startup Sync Finished] FIRMS result: {res.get('message', 'Completed')}")
+            from app.features.hotspot.climate_sync import sync_all_climate_for_hotspots
+            await sync_all_climate_for_hotspots()
+            print("✅ [Startup Sync Finished] Iklim dinamis untuk titik hotspot aktif berhasil disinkronkan.")
         except Exception as e_sync:
             print(f"⚠️ [Startup Sync Error] Initial auto-fetch failed: {e_sync}")
 

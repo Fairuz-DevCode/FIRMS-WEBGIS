@@ -1,6 +1,6 @@
 import React from 'react';
 import { Popup } from 'react-leaflet';
-import { HotspotProperties } from '../../../types/hotspot';
+import { HotspotProperties } from '../types/hotspot.types';
 
 interface HotspotPopupProps {
   properties: HotspotProperties;

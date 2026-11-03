@@ -13,7 +13,10 @@ export const LandCoverLegend: React.FC<LandCoverLegendProps> = ({
   onOpacityChange,
   activeProviderName,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  // Default collapsed on mobile screens (< 768px) to prevent screen overcrowding
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
 
   return (
     <div className="landcover-legend-card rounded-xl border border-slate-200/90 bg-white/95 p-3 text-xs text-slate-800 shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md min-w-[240px]">

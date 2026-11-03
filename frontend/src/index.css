@@ -11,3 +11,8 @@
     @apply h-full w-full overflow-hidden bg-slate-900 font-sans text-slate-900;
   }
 }
+
+/* Atribusi Leaflet: Sembunyikan bar atribusi bawaan peta agar layar bersih (sumber lengkap dipindah ke info layer) */
+.leaflet-control-attribution {
+  display: none !important;
+}

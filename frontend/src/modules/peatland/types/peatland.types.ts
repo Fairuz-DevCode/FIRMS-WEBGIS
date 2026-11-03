@@ -1,4 +1,4 @@
-import { PolygonGeometry } from './geo';
+import { PolygonGeometry } from '../../../shared/types/geo.types';
 
 export interface PeatlandProperties {
   name?: string;
