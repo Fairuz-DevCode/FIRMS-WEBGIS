@@ -24,44 +24,79 @@ def seed():
             time.sleep(2)
 
     # 2. Seed Peatlands
-    peatland_candidates = [
-        "data/raw data/Indonesia_Peat_Lands.geojson",
-        "data/Indonesia_Peat_Lands.geojson",
-        "/app/data/raw data/Indonesia_Peat_Lands.geojson",
-        "/app/data/Indonesia_Peat_Lands.geojson"
-    ]
-    peatland_file = next((f for f in peatland_candidates if os.path.exists(f)), None)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                CREATE EXTENSION IF NOT EXISTS postgis;
+                CREATE TABLE IF NOT EXISTS peatlands (
+                    ogc_fid SERIAL PRIMARY KEY,
+                    objectid INTEGER,
+                    layer_revi VARCHAR,
+                    shape_area DOUBLE PRECISION,
+                    geom GEOMETRY(Geometry, 4326)
+                );
+                CREATE INDEX IF NOT EXISTS peatlands_geom_geom_idx ON peatlands USING GIST (geom);
+            """))
+            conn.commit()
 
-    if peatland_file:
-        try:
-            with engine.connect() as conn:
-                cnt = conn.execute(text("SELECT COUNT(*) FROM peatlands;")).scalar()
-                if cnt == 0:
-                    print(f"[SEED] Seeding peatlands from {peatland_file}...")
-                    with open(peatland_file, "r") as f:
-                        geojson = json.load(f)
-                    
-                    features = geojson.get("features", [])
-                    print(f"[SEED] Inserting {len(features)} peatland polygons...")
-                    for feat in features:
-                        props = feat.get("properties", {})
-                        geom_json = json.dumps(feat.get("geometry", {}))
-                        obj_id = props.get("objectid")
-                        layer_rev = props.get("layer_revi", "gambut")
-                        shape_area = props.get("shape_Area")
-                        conn.execute(
-                            text("""
-                                INSERT INTO peatlands (objectid, layer_revi, shape_area, geom)
-                                VALUES (:obj_id, :layer_revi, :shape_area, ST_SetSRID(ST_GeomFromGeoJSON(:geom_json), 4326))
-                            """),
-                            {"obj_id": obj_id, "layer_revi": layer_rev, "shape_area": shape_area, "geom_json": geom_json}
-                        )
-                    conn.commit()
-                    print("[SEED] Peatlands seeded successfully!")
+            cnt = conn.execute(text("SELECT COUNT(*) FROM peatlands;")).scalar()
+            if cnt == 0:
+                # 2.1 First check fast SQL dump file
+                sql_candidates = [
+                    "peatlands_init.sql",
+                    "/app/peatlands_init.sql",
+                    "../peatlands_init.sql",
+                    "data/peatlands_init.sql",
+                    "/app/data/peatlands_init.sql"
+                ]
+                sql_file = next((f for f in sql_candidates if os.path.exists(f)), None)
+
+                if sql_file:
+                    print(f"[SEED] Fast seeding peatlands from SQL file: {sql_file}...")
+                    raw_conn = engine.raw_connection()
+                    try:
+                        cursor = raw_conn.cursor()
+                        with open(sql_file, "r") as f:
+                            cursor.execute(f.read())
+                        raw_conn.commit()
+                        print("[SEED] Peatlands seeded successfully from SQL!")
+                    finally:
+                        raw_conn.close()
                 else:
-                    print(f"[SEED] Peatlands already contains {cnt} records. Skipping.")
-        except Exception as e:
-            print(f"[SEED ERROR] Error seeding peatlands: {e}")
+                    # 2.2 Fallback to GeoJSON file
+                    peatland_candidates = [
+                        "data/raw data/Indonesia_Peat_Lands.geojson",
+                        "data/Indonesia_Peat_Lands.geojson",
+                        "/app/data/raw data/Indonesia_Peat_Lands.geojson",
+                        "/app/data/Indonesia_Peat_Lands.geojson"
+                    ]
+                    peatland_file = next((f for f in peatland_candidates if os.path.exists(f)), None)
+                    if peatland_file:
+                        print(f"[SEED] Seeding peatlands from {peatland_file}...")
+                        with open(peatland_file, "r") as f:
+                            geojson = json.load(f)
+                        
+                        features = geojson.get("features", [])
+                        print(f"[SEED] Inserting {len(features)} peatland polygons...")
+                        for feat in features:
+                            props = feat.get("properties", {})
+                            geom_json = json.dumps(feat.get("geometry", {}))
+                            obj_id = props.get("objectid")
+                            layer_rev = props.get("layer_revi", "gambut")
+                            shape_area = props.get("shape_Area")
+                            conn.execute(
+                                text("""
+                                    INSERT INTO peatlands (objectid, layer_revi, shape_area, geom)
+                                    VALUES (:obj_id, :layer_revi, :shape_area, ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(:geom_json), 4326)))
+                                """),
+                                {"obj_id": obj_id, "layer_revi": layer_rev, "shape_area": shape_area, "geom_json": geom_json}
+                            )
+                        conn.commit()
+                        print("[SEED] Peatlands seeded successfully from GeoJSON!")
+            else:
+                print(f"[SEED] Peatlands already contains {cnt} records. Skipping.")
+    except Exception as e:
+        print(f"[SEED ERROR] Error seeding peatlands: {e}")
 
     # 3. Seed ERA5 (Temperature, Rainfall, Soil Moisture)
     era5_candidates = [

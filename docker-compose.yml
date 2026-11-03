@@ -11,6 +11,7 @@ services:
       - "5433:5432"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./peatlands_init.sql:/docker-entrypoint-initdb.d/02_peatlands.sql
       - ./data/hotspots_7years_clean.csv:/docker-entrypoint-initdb.d/hotspots_7years_clean.csv
       - postgres_db_data:/var/lib/postgresql/data
     networks:
@@ -43,6 +44,7 @@ services:
       - "5000:5000"
     volumes:
       - ./backend/app:/app/app
+      - ./peatlands_init.sql:/app/peatlands_init.sql:ro
       - ./data:/app/data:ro
     depends_on:
       db:
