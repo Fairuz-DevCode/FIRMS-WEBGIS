@@ -16,3 +16,87 @@
 .leaflet-control-attribution {
   display: none !important;
 }
+
+/* Custom Sleek Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.4);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.7);
+}
+
+/* Popup Hotspot Custom Styling & Mobile Optimization */
+.hotspot-leaflet-popup .leaflet-popup-content-wrapper {
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.hotspot-popup-container {
+  min-width: 240px;
+  font-size: 11.5px;
+  padding: 1px;
+}
+
+@media (max-width: 768px) {
+  .hotspot-leaflet-popup .leaflet-popup-content-wrapper {
+    padding: 1px !important;
+    border-radius: 8px !important;
+  }
+
+  .hotspot-leaflet-popup .leaflet-popup-content {
+    margin: 6px 9px 8px 9px !important;
+    width: auto !important;
+  }
+
+  .hotspot-leaflet-popup a.leaflet-popup-close-button {
+    top: 3px !important;
+    right: 3px !important;
+    padding: 0 !important;
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 13px !important;
+    line-height: 16px !important;
+    color: #94a3b8 !important;
+  }
+
+  .hotspot-popup-container {
+    min-width: 195px !important;
+    max-width: 220px !important;
+    font-size: 9.5px !important;
+  }
+
+  .hotspot-popup-header {
+    padding-bottom: 3px !important;
+    margin-bottom: 3px !important;
+  }
+
+  .hotspot-popup-title {
+    font-size: 11px !important;
+  }
+
+  .hotspot-popup-badge {
+    font-size: 8.5px !important;
+    padding: 1px 4px !important;
+  }
+
+  .hotspot-popup-rows {
+    gap: 2px !important;
+  }
+
+  .hotspot-popup-row {
+    padding-bottom: 1.5px !important;
+  }
+
+  .hotspot-popup-sub {
+    font-size: 8.5px !important;
+  }
+}
+

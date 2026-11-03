@@ -137,64 +137,38 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
 
   return (
     <>
-      {/* Mobile backdrop: hanya muncul jika sheet di-expand penuh agar mudah ditutup */}
+      {/* Mobile & Tablet backdrop: hanya muncul jika sheet di-expand penuh agar mudah ditutup */}
       {isExpanded && (
         <div 
-          className="fixed inset-0 z-[1300] bg-slate-950/40 backdrop-blur-xs md:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 z-[1300] bg-slate-950/40 backdrop-blur-xs lg:hidden animate-in fade-in duration-200"
           onClick={() => setIsExpanded(false)}
         />
       )}
 
-      <aside className={`fixed inset-x-0 bottom-0 z-[1400] w-full flex flex-col rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-300 ease-in-out md:absolute md:inset-x-auto md:top-0 md:right-0 md:bottom-0 md:h-full md:max-h-full md:w-[410px] md:rounded-none md:border-t-0 md:border-l md:shadow-[-8px_0_28px_rgba(0,0,0,0.18)] md:slide-in-from-right ${
+      <aside className={`fixed inset-x-0 bottom-0 z-[1400] w-full flex flex-col rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-300 ease-in-out lg:absolute lg:inset-x-auto lg:top-0 lg:right-0 lg:bottom-0 lg:h-full lg:max-h-full lg:w-[410px] lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-[-8px_0_28px_rgba(0,0,0,0.18)] lg:slide-in-from-right lg:z-[1050] ${
         isExpanded ? 'max-h-[85vh] h-[85vh]' : 'max-h-[220px]'
       }`}>
-        {/* Mobile handle indicator & toggle bar */}
+        {/* Mobile & Tablet handle indicator & toggle bar */}
         <div 
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex flex-col items-center justify-center pt-2 pb-1 md:hidden bg-gradient-to-r from-prims-900 via-prims-800 to-prims-900 rounded-t-2xl cursor-pointer select-none active:brightness-110 transition-all border-b border-white/10"
+          className="flex flex-col items-center justify-center pt-2 pb-1 lg:hidden bg-gradient-to-r from-prims-900 via-prims-800 to-prims-900 rounded-t-2xl cursor-pointer select-none active:brightness-110 transition-all border-b border-white/10"
         >
           <div className="w-10 h-1 bg-emerald-400/60 rounded-full mb-1" />
-          <div className="flex items-center gap-1 text-[9px] text-emerald-100 font-medium">
-            <span>{isExpanded ? 'Ketuk untuk perkecil' : 'Tarik ke atas / ketuk untuk detail lengkap'}</span>
-            {isExpanded ? <ChevronDown className="h-2.5 w-2.5 text-emerald-200" /> : <ChevronUp className="h-2.5 w-2.5 text-emerald-300" />}
-          </div>
         </div>
 
         {/* Header Sidebar */}
         <div className="flex items-center justify-between border-b border-white/15 bg-gradient-to-r from-prims-900 via-prims-800 to-prims-900 px-3.5 py-2 sm:px-5 sm:py-3.5 text-white shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 shrink-0">
-              <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </div>
-            <div>
+          <div className="flex flex-col">
               <h2 className="text-xs sm:text-sm font-bold leading-tight">Analisis Data Spasial Titik Api</h2>
               <p className="text-[10px] sm:text-[11px] text-emerald-100/80 truncate max-w-[190px] sm:max-w-none">
                 {data.province || 'Indonesia'} • {acq_date} {acq_time} UTC
               </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex md:hidden h-7 w-7 items-center justify-center rounded-lg text-emerald-200 hover:bg-white/15 hover:text-white transition-colors"
-              title={isExpanded ? "Perkecil panel" : "Perbesar panel"}
-            >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </button>
-            <button
-              onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-200 hover:bg-white/15 hover:text-white transition-colors"
-              title="Tutup Analisis"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         </div>
 
-        {/* Compact Mobile Summary (Hanya muncul di mobile saat panel belum di-expand) */}
+        {/* Compact Mobile Summary (Hanya muncul di mobile & tablet saat panel belum di-expand) */}
         {!isExpanded && (
-          <div className="p-2.5 space-y-2 md:hidden overflow-hidden">
+          <div className="p-2.5 space-y-2 lg:hidden overflow-hidden">
             <div className="flex items-center justify-between gap-2.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
               {/* Mini Donut */}
               <div className="flex items-center gap-2">
@@ -240,8 +214,8 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
           </div>
         )}
 
-        {/* Full Scrollable Body (Desktop selalu tampil, mobile tampil saat di-expand) */}
-        <div className={`${!isExpanded ? 'hidden md:block' : 'block'} flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-3 sm:space-y-4 text-xs text-slate-700`}>
+        {/* Full Scrollable Body (Desktop selalu tampil, mobile & tablet tampil saat di-expand) */}
+        <div className={`${!isExpanded ? 'hidden lg:block' : 'block'} flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-3 sm:space-y-4 text-xs text-slate-700`}>
         
         {/* Loading overlay if fetching */}
         {data.loading && (
@@ -438,22 +412,21 @@ export const HotspotAnalyticsSidebar: React.FC<HotspotAnalyticsSidebarProps> = (
       </div>
 
       {/* Footer Sidebar */}
-      <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5 sm:px-5 sm:py-3 flex justify-between items-center text-[10px] sm:text-[11px] text-slate-500 shrink-0">
-        <span>*PostGIS Spatial Analysis & ERA5</span>
+      <div className="border-t border-slate-200 bg-slate-50 px-4 py-2.5 sm:px-5 sm:py-3 flex items-center justify-end shrink-0">
         <div className="flex items-center gap-2">
           {isExpanded && (
             <button
               type="button"
               onClick={() => setIsExpanded(false)}
-              className="md:hidden px-2.5 py-1 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 active:scale-95 transition-all text-xs flex items-center gap-1"
+              className="lg:hidden h-8 px-3.5 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 active:scale-95 transition-all text-xs inline-flex items-center justify-center"
             >
-              <ChevronDown className="h-3 w-3" />
               Perkecil
             </button>
           )}
           <button
+            type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 active:scale-95 transition-all text-xs"
+            className="h-8 px-3.5 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 active:scale-95 transition-all text-xs inline-flex items-center justify-center"
           >
             Tutup
           </button>

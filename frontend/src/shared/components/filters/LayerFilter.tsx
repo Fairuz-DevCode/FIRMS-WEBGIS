@@ -160,6 +160,87 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
     },
   ];
 
+  const renderOpacitySlider = (itemId: LayerInfoType, checked: boolean) => {
+    if (!checked) return null;
+    if (itemId === 'land_cover' && onLandCoverOpacityChange) {
+      return (
+        <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
+          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
+            <span>Transparansi Tutupan Lahan</span>
+            <span className="font-mono text-emerald-700 font-bold">{Math.round(landCoverOpacity * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="1"
+            step="0.05"
+            value={landCoverOpacity}
+            onChange={(e) => onLandCoverOpacityChange(parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+          />
+        </div>
+      );
+    }
+    if (itemId === 'rainfall' && onRainfallOpacityChange) {
+      return (
+        <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
+          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
+            <span>Transparansi Curah Hujan</span>
+            <span className="font-mono text-sky-700 font-bold">{Math.round(rainfallOpacity * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="1"
+            step="0.05"
+            value={rainfallOpacity}
+            onChange={(e) => onRainfallOpacityChange(parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-600"
+          />
+        </div>
+      );
+    }
+    if (itemId === 'soil_moisture' && onSoilMoistureOpacityChange) {
+      return (
+        <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
+          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
+            <span>Transparansi Kelembaban Tanah</span>
+            <span className="font-mono text-blue-700 font-bold">{Math.round(soilMoistureOpacity * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="1"
+            step="0.05"
+            value={soilMoistureOpacity}
+            onChange={(e) => onSoilMoistureOpacityChange(parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+          />
+        </div>
+      );
+    }
+    if (itemId === 'temperature' && onTemperatureOpacityChange) {
+      return (
+        <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
+          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
+            <span>Transparansi Suhu Udara</span>
+            <span className="font-mono text-orange-700 font-bold">{Math.round(temperatureOpacity * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="1"
+            step="0.05"
+            value={temperatureOpacity}
+            onChange={(e) => onTemperatureOpacityChange(parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+          />
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <>
       {isMobile ? (
@@ -178,34 +259,37 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
             {layerItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200/80 hover:bg-slate-50 transition-colors"
+                className="p-2 rounded-lg bg-white border border-slate-200/80 hover:bg-slate-50 transition-colors"
               >
-                <div
-                  onClick={item.onToggle}
-                  className="flex items-center gap-2 flex-1 cursor-pointer select-none"
-                >
-                  {item.icon}
-                  <span className="font-semibold text-slate-800 text-xs">{item.label}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveLayerInfo(item.id);
-                    }}
-                    className="p-1 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 active:scale-95 transition-all"
-                    title={`Informasi ${item.label}`}
+                <div className="flex items-center justify-between">
+                  <div
+                    onClick={item.onToggle}
+                    className="flex items-center gap-2 flex-1 cursor-pointer select-none"
                   >
-                    <Info className="h-3.5 w-3.5" />
-                  </button>
-                  <input
-                    type="checkbox"
-                    checked={item.checked}
-                    onChange={item.onToggle}
-                    className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                  />
+                    {item.icon}
+                    <span className="font-semibold text-slate-800 text-xs">{item.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveLayerInfo(item.id);
+                      }}
+                      className="p-1 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 active:scale-95 transition-all"
+                      title={`Informasi ${item.label}`}
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
+                      onChange={item.onToggle}
+                      className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                  </div>
                 </div>
+                {renderOpacitySlider(item.id, item.checked)}
               </div>
             ))}
           </div>
@@ -240,28 +324,31 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                 {layerItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors"
                   >
-                    <label className="flex items-center gap-2 flex-1 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={item.checked}
-                        onChange={item.onToggle}
-                        className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                      />
-                      <span className="font-medium text-slate-800 text-xs flex items-center gap-1.5">
-                        {item.icon}
-                        {item.label}
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setActiveLayerInfo(item.id)}
-                      className="p-1 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                      title={`Informasi ${item.label}`}
-                    >
-                      <Info className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          onChange={item.onToggle}
+                          className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                        <span className="font-medium text-slate-800 text-xs flex items-center gap-1.5">
+                          {item.icon}
+                          {item.label}
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLayerInfo(item.id)}
+                        className="p-1 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                        title={`Informasi ${item.label}`}
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {renderOpacitySlider(item.id, item.checked)}
                   </div>
                 ))}
               </div>
@@ -415,23 +502,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                       </div>
                     ))}
                   </div>
-                  {onLandCoverOpacityChange && (
-                    <div className="pt-2 border-t border-slate-100 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
-                        <span>Transparansi Layer</span>
-                        <span className="font-mono text-emerald-700 font-bold">{Math.round(landCoverOpacity * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.05"
-                        value={landCoverOpacity}
-                        onChange={(e) => onLandCoverOpacityChange(parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                      />
-                    </div>
-                  )}
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                     <span className="font-semibold text-slate-700">Sumber Data:</span>
                     <span className="font-medium text-slate-600 text-right">Esri Sentinel-2 Land Cover</span>
@@ -457,23 +527,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                       </div>
                     ))}
                   </div>
-                  {onRainfallOpacityChange && (
-                    <div className="pt-2 border-t border-slate-100 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
-                        <span>Transparansi Layer</span>
-                        <span className="font-mono text-sky-700 font-bold">{Math.round(rainfallOpacity * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.05"
-                        value={rainfallOpacity}
-                        onChange={(e) => onRainfallOpacityChange(parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-600"
-                      />
-                    </div>
-                  )}
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                     <span className="font-semibold text-slate-700">Sumber Data:</span>
                     <span className="font-medium text-slate-600 text-right">Copernicus ECMWF (ERA5-Land)</span>
@@ -499,23 +552,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                       </div>
                     ))}
                   </div>
-                  {onSoilMoistureOpacityChange && (
-                    <div className="pt-2 border-t border-slate-100 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
-                        <span>Transparansi Layer</span>
-                        <span className="font-mono text-blue-700 font-bold">{Math.round(soilMoistureOpacity * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.05"
-                        value={soilMoistureOpacity}
-                        onChange={(e) => onSoilMoistureOpacityChange(parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                      />
-                    </div>
-                  )}
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                     <span className="font-semibold text-slate-700">Sumber Data:</span>
                     <span className="font-medium text-slate-600 text-right">Copernicus ECMWF (ERA5-Land)</span>
@@ -541,23 +577,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                       </div>
                     ))}
                   </div>
-                  {onTemperatureOpacityChange && (
-                    <div className="pt-2 border-t border-slate-100 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
-                        <span>Transparansi Layer</span>
-                        <span className="font-mono text-orange-700 font-bold">{Math.round(temperatureOpacity * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.05"
-                        value={temperatureOpacity}
-                        onChange={(e) => onTemperatureOpacityChange(parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                      />
-                    </div>
-                  )}
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                     <span className="font-semibold text-slate-700">Sumber Data:</span>
                     <span className="font-medium text-slate-600 text-right">Copernicus ECMWF (ERA5-Land)</span>

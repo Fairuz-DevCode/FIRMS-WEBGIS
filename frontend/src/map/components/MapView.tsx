@@ -311,6 +311,9 @@ export const MapView: React.FC = () => {
       <Navbar
         basemap={basemap}
         onBasemapToggle={handleBasemapToggle}
+        onBasemapChange={(type) => setBasemap(type)}
+        sensor={sensor}
+        onSensorChange={setSensor}
         activeDropdown={activeDropdown}
         onToggleDropdown={(dropdown) => setActiveDropdown(activeDropdown === dropdown ? null : dropdown)}
         onCloseDropdown={() => setActiveDropdown(null)}
@@ -361,8 +364,8 @@ export const MapView: React.FC = () => {
       <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
         <div className="relative h-full min-w-0 flex-1">
 
-          {/* Floating Climate, Land Cover & Satellite Stats Legends (Hanya Tampil di Desktop >= md, di HP Bersih & Diakses via Menu Layer) */}
-          <div className="hidden md:flex absolute top-4 left-4 z-[1000] flex-col gap-1.5 pointer-events-auto max-w-[270px]">
+          {/* Floating Climate, Land Cover & Satellite Stats Legends (Hanya Tampil di Layar >= lg, di bawahnya disembunyikan agar peta lega) */}
+          <div className="hidden lg:flex absolute top-3 left-3 z-[1000] flex-col gap-1.5 pointer-events-auto max-w-[270px] max-h-[calc(100vh-5.5rem)] overflow-y-auto pr-1 pb-4 custom-scrollbar">
             {/* Informasi Sensor NASA FIRMS */}
             <SatelliteStatsWidget hotspots={displayedHotspots} currentSensor={sensor} />
 

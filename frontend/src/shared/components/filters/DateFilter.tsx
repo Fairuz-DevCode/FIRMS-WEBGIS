@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { Calendar, ChevronDown, Flame } from 'lucide-react';
 
 interface DateFilterProps {
   dateFilterMode: 'range' | 'single' | 'days';
@@ -35,32 +35,20 @@ export const DateFilter: React.FC<DateFilterProps> = ({
       <div className="space-y-3">
         {/* Tampilan Mode Hotspot */}
         <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-          <div className="font-bold text-slate-900 flex items-center justify-between text-xs">
+          <div className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+            <Flame className="h-4 w-4 text-emerald-700" />
             <span>Mode Visualisasi Titik Api</span>
           </div>
-          <div className="grid grid-cols-2 gap-1.5 bg-white p-1 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => onHotspotModeChange('markers')}
-              className={`py-1.5 text-xs font-bold rounded-md transition-colors ${
-                hotspotMode === 'markers'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+          <div className="relative">
+            <select
+              value={hotspotMode}
+              onChange={(e) => onHotspotModeChange(e.target.value as 'markers' | 'heatmap')}
+              className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 pr-8 text-xs font-semibold text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer"
             >
-              Titik Pin
-            </button>
-            <button
-              type="button"
-              onClick={() => onHotspotModeChange('heatmap')}
-              className={`py-1.5 text-xs font-bold rounded-md transition-colors ${
-                hotspotMode === 'heatmap'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Heatmap
-            </button>
+              <option value="markers">📍 Titik Pin (Marker & Cluster)</option>
+              <option value="heatmap">🔥 Heatmap (Peta Kepadatan Panas)</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           </div>
         </div>
 
@@ -138,29 +126,16 @@ export const DateFilter: React.FC<DateFilterProps> = ({
           {/* Mode Visualisasi Hotspot */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">Tampilan Hotspot:</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={() => onHotspotModeChange('markers')}
-                className={`py-1 rounded border text-[11px] font-medium transition-colors ${
-                  hotspotMode === 'markers'
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-bold'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
+            <div className="relative">
+              <select
+                value={hotspotMode}
+                onChange={(e) => onHotspotModeChange(e.target.value as 'markers' | 'heatmap')}
+                className="w-full h-8 rounded-lg border border-slate-200 bg-slate-50 px-2.5 pr-7 text-xs font-semibold text-slate-800 shadow-2xs focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer"
               >
-                Titik Pin
-              </button>
-              <button
-                type="button"
-                onClick={() => onHotspotModeChange('heatmap')}
-                className={`py-1 rounded border text-[11px] font-medium transition-colors ${
-                  hotspotMode === 'heatmap'
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-bold'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Heatmap
-              </button>
+                <option value="markers">📍 Titik Pin (Marker & Cluster)</option>
+                <option value="heatmap">🔥 Heatmap (Kepadatan Titik Panas)</option>
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             </div>
           </div>
 

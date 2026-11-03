@@ -125,73 +125,73 @@ function createPopupContent(
   const peatLabel = isPeat ? 'Di Dalam Gambut' : 'Di Luar Gambut';
 
   return `
-    <div style="min-width: 260px; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; font-size: 11.5px; color: #475569; padding: 2px;">
+    <div class="hotspot-popup-container" style="font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; color: #475569;">
       <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
-        <span style="font-weight: 700; color: #0f172a; font-size: 13px;">Informasi Titik Api</span>
-        <span style="font-weight: 700; font-size: 10px; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; border: 1px solid ${badgeBorder}; background: ${badgeBg}; color: ${badgeColor};">
+      <div class="hotspot-popup-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 6px;">
+        <span class="hotspot-popup-title" style="font-weight: 700; color: #0f172a; font-size: 12.5px;">Informasi Titik Api</span>
+        <span class="hotspot-popup-badge" style="font-weight: 700; font-size: 9.5px; text-transform: uppercase; padding: 1.5px 6px; border-radius: 5px; border: 1px solid ${badgeBorder}; background: ${badgeBg}; color: ${badgeColor};">
           ${confidence || 'N/A'}
         </span>
       </div>
 
       <!-- Detail Parameter -->
-      <div style="display: flex; flex-direction: column; gap: 5px;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Sensor / Satelit:</span>
-          <strong style="color: #1e293b;">${sensorName}</strong>
+      <div class="hotspot-popup-rows" style="display: flex; flex-direction: column; gap: 4px;">
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Sensor / Satelit:</span>
+          <strong class="hotspot-popup-val" style="color: #1e293b;">${sensorName}</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Waktu Deteksi:</span>
-          <strong style="color: #1e293b;">${acq_date} ${acq_time} UTC</strong>
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Waktu Deteksi:</span>
+          <strong class="hotspot-popup-val" style="color: #1e293b;">${acq_date} ${acq_time} UTC</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Suhu Kecerahan:</span>
-          <strong style="color: #1e293b;">${brightness !== null ? Number(brightness).toFixed(1) + ' K' : 'N/A'}</strong>
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Suhu Kecerahan:</span>
+          <strong class="hotspot-popup-val" style="color: #1e293b;">${brightness !== null ? Number(brightness).toFixed(1) + ' K' : 'N/A'}</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Kekuatan Api (FRP):</span>
-          <strong style="color: #1e293b;">${frp !== null ? Number(frp).toFixed(1) + ' MW' : 'N/A'}</strong>
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Kekuatan Api (FRP):</span>
+          <strong class="hotspot-popup-val" style="color: #1e293b;">${frp !== null ? Number(frp).toFixed(1) + ' MW' : 'N/A'}</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Koordinat:</span>
-          <strong style="color: #1e293b;">${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}</strong>
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Koordinat:</span>
+          <strong class="hotspot-popup-val" style="color: #1e293b;">${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Status Lahan Gambut:</span>
-          <strong style="color: #1e293b;">${peatLabel}</strong>
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Status Lahan Gambut:</span>
+          <strong class="hotspot-popup-val" style="color: #1e293b;">${peatLabel}</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; gap: 12px;">
-          <span style="color: #64748b; white-space: nowrap; flex-shrink: 0;">Tutupan Lahan:</span>
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px; gap: 8px;">
+          <span class="hotspot-popup-label" style="color: #64748b; white-space: nowrap; flex-shrink: 0;">Tutupan Lahan:</span>
           <div style="text-align: right; max-width: 140px; word-break: break-word;">
             ${(() => {
               const text = context?.landCoverClass || 'Memuat...';
               if (text.includes(' / ')) {
                 const parts = text.split(' / ');
-                return `<strong style="color: #1e293b; display: block; line-height: 1.25;">${parts[0]}</strong><div style="font-size: 10px; color: #64748b; font-weight: 500; margin-top: 1px;">${parts.slice(1).join(' / ')}</div>`;
+                return `<strong class="hotspot-popup-val" style="color: #1e293b; display: block; line-height: 1.2;">${parts[0]}</strong><div class="hotspot-popup-sub" style="font-size: 9.5px; color: #64748b; font-weight: 500; margin-top: 1px;">${parts.slice(1).join(' / ')}</div>`;
               }
-              return `<strong style="color: #1e293b; display: block; line-height: 1.25;">${text}</strong>`;
+              return `<strong class="hotspot-popup-val" style="color: #1e293b; display: block; line-height: 1.2;">${text}</strong>`;
             })()}
           </div>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Curah Hujan:</span>
-          <div style="text-align: right;">
-            <strong style="color: #1e293b;">${context?.rainfall ? `${context.rainfall.value} mm` : 'Memuat...'}</strong>
-            ${context?.rainfall?.category ? `<div style="font-size: 10px; color: #64748b; font-weight: 500;">${context.rainfall.category}</div>` : ''}
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Curah Hujan:</span>
+          <div style="text-align: right; line-height: 1.2;">
+            <strong class="hotspot-popup-val" style="color: #1e293b;">${context?.rainfall ? `${context.rainfall.value} mm` : 'Memuat...'}</strong>
+            ${context?.rainfall?.category ? `<div class="hotspot-popup-sub" style="font-size: 9.5px; color: #64748b; font-weight: 500;">${context.rainfall.category}</div>` : ''}
           </div>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-          <span style="color: #64748b;">Kelembaban Tanah:</span>
-          <div style="text-align: right;">
-            <strong style="color: #1e293b;">${context?.soilMoisture ? `${context.soilMoisture.value} m³/m³` : 'Memuat...'}</strong>
-            ${context?.soilMoisture?.category ? `<div style="font-size: 10px; color: #64748b; font-weight: 500;">${context.soilMoisture.category}</div>` : ''}
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Kelembaban Tanah:</span>
+          <div style="text-align: right; line-height: 1.2;">
+            <strong class="hotspot-popup-val" style="color: #1e293b;">${context?.soilMoisture ? `${context.soilMoisture.value} m³/m³` : 'Memuat...'}</strong>
+            ${context?.soilMoisture?.category ? `<div class="hotspot-popup-sub" style="font-size: 9.5px; color: #64748b; font-weight: 500;">${context.soilMoisture.category}</div>` : ''}
           </div>
         </div>
-        <div style="display: flex; justify-content: space-between; padding-bottom: 2px;">
-          <span style="color: #64748b;">Suhu Udara:</span>
-          <div style="text-align: right;">
-            <strong style="color: #1e293b;">${context?.temperature ? `${context.temperature.value} °C` : 'Memuat...'}</strong>
-            ${context?.temperature?.category ? `<div style="font-size: 10px; color: #64748b; font-weight: 500;">${context.temperature.category}</div>` : ''}
+        <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; padding-bottom: 1px;">
+          <span class="hotspot-popup-label" style="color: #64748b;">Suhu Udara:</span>
+          <div style="text-align: right; line-height: 1.2;">
+            <strong class="hotspot-popup-val" style="color: #1e293b;">${context?.temperature ? `${context.temperature.value} °C` : 'Memuat...'}</strong>
+            ${context?.temperature?.category ? `<div class="hotspot-popup-sub" style="font-size: 9.5px; color: #64748b; font-weight: 500;">${context.temperature.category}</div>` : ''}
           </div>
         </div>
       </div>
@@ -518,7 +518,8 @@ export default function HotspotLayer({
           });
 
           circleMarker.bindPopup(() => createPopupContent(leafProps.rawRow, sensor, baseContext), {
-            maxWidth: 300
+            maxWidth: 280,
+            className: 'hotspot-leaflet-popup'
           });
 
           // Dynamic asynchronous fetch when clicked: open sidebar & query environmental & land cover context

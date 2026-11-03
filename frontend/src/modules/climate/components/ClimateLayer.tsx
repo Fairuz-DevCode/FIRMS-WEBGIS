@@ -2,18 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { getApiBaseUrl } from '../../../shared/utils/api';
-
-/**
- * Returns true if the given [lng, lat] coordinate is within Indonesian territory.
- * Covers all major island groups: Sumatera, Kalimantan (Indonesia only),
- * Jawa, Sulawesi, Nusa Tenggara, Maluku, and Papua.
- * Excludes Malaysia (Sabah/Sarawak), Singapore, Brunei, and Timor-Leste.
- */
-function isInIndonesia(lng: number, lat: number): boolean {
-  // Rentang koordinat kepulauan Indonesia: Sabang sampai Merauke
-  return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
-}
-
 import { ClimateType } from '../types/climate.types';
 export type { ClimateType };
 
@@ -23,8 +11,84 @@ interface ClimateLayerProps {
   opacity?: number;
 }
 
+// Module-level cache for Indonesia boundary GeoJSON to prevent redundant network fetches
+let cachedBoundaryGeoJSON: any = null;
+let boundaryPromise: Promise<any> | null = null;
+
+async function getBoundaryGeoJSON(): Promise<any> {
+  if (cachedBoundaryGeoJSON) return cachedBoundaryGeoJSON;
+  if (!boundaryPromise) {
+    boundaryPromise = fetch('/indonesia_boundary.geojson')
+      .then(res => res.json())
+      .then(json => {
+        cachedBoundaryGeoJSON = json;
+        return json;
+      })
+      .catch(err => {
+        console.warn('Failed to load indonesia_boundary.geojson:', err);
+        return null;
+      });
+  }
+  return boundaryPromise;
+}
+
+/**
+ * Draws the vector boundary of all Indonesian islands onto the canvas context.
+ * Used as a sub-pixel vector clipping mask to cut raster graphics along exact coastlines.
+ */
+function drawBoundaryMask(
+  ctx: CanvasRenderingContext2D,
+  boundary: any,
+  width: number,
+  height: number,
+  bounds: { west: number; east: number; south: number; north: number }
+) {
+  const { west, east, south, north } = bounds;
+  const lonSpan = east - west;
+  const latSpan = north - south;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+
+  const toX = (lng: number) => ((lng - west) / lonSpan) * width;
+  const toY = (lat: number) => ((north - lat) / latSpan) * height;
+
+  const renderRings = (rings: number[][][]) => {
+    for (const ring of rings) {
+      if (!ring || ring.length === 0) continue;
+      ctx.moveTo(toX(ring[0][0]), toY(ring[0][1]));
+      for (let i = 1; i < ring.length; i++) {
+        ctx.lineTo(toX(ring[i][0]), toY(ring[i][1]));
+      }
+      ctx.closePath();
+    }
+  };
+
+  for (const feature of boundary.features || []) {
+    const geom = feature.geometry;
+    if (!geom) continue;
+
+    if (geom.type === 'Polygon') {
+      renderRings(geom.coordinates);
+    } else if (geom.type === 'MultiPolygon') {
+      for (const poly of geom.coordinates) {
+        renderRings(poly);
+      }
+    }
+  }
+
+  ctx.fill('evenodd');
+}
+
+/**
+ * Geographic bounding box check for Indonesian domain
+ */
+function isInIndonesia(lng: number, lat: number): boolean {
+  return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
+}
+
 // Convert RGB hex string to RGBA values [r, g, b, a]
-function hexToRgba(hex: string, alpha: number = 200): [number, number, number, number] {
+function hexToRgba(hex: string, alpha: number = 220): [number, number, number, number] {
   const clean = hex.replace('#', '');
   const num = parseInt(clean, 16);
   return [(num >> 16) & 255, (num >> 8) & 255, num & 255, alpha];
@@ -45,7 +109,7 @@ function getGridColorRgba(type: ClimateType, val: number): [number, number, numb
   } else if (type === 'temperature') {
     hex = getTemperatureColor(val);
   }
-  return hexToRgba(hex, 220);
+  return hexToRgba(hex, 230);
 }
 
 export const ClimateLayer: React.FC<ClimateLayerProps> = ({
@@ -55,7 +119,17 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 }) => {
   const map = useMap();
   const [data, setData] = useState<number[][]>([]);
+  const [boundary, setBoundary] = useState<any>(cachedBoundaryGeoJSON);
   const overlayRef = useRef<L.ImageOverlay | null>(null);
+
+  // Fetch Indonesia boundary GeoJSON for vector masking
+  useEffect(() => {
+    if (!boundary) {
+      getBoundaryGeoJSON().then(geojson => {
+        if (geojson) setBoundary(geojson);
+      });
+    }
+  }, [boundary]);
 
   useEffect(() => {
     if (!visible) return;
@@ -116,10 +190,9 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     const imgData = ctx.createImageData(cols, rows);
     const pixels = imgData.data;
 
-    // Adaptive kernel radius based on data density
-    // If dense ERA5 dataset (>10,000 points, step ~0.1 deg), point radius = 0 (single pixel).
-    // If dynamic grid (~1,000-3,000 points, step ~0.5 deg), point radius = 3 pixels so adjacent points blend seamlessly.
-    const radius = data.length < 5000 ? 3 : 0;
+    // Point radius: 1 pixel spread for dense data to guarantee complete overlap without gaps
+    // 3 pixels for dynamic / sparse grid
+    const radius = data.length < 5000 ? 3 : 1;
 
     // Map each data point into the continuous grid surface
     for (let i = 0; i < data.length; i++) {
@@ -136,25 +209,17 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
       const [r, g, b, a] = getGridColorRgba(type, val);
 
-      if (radius === 0) {
-        const pixelIdx = (y * cols + x) * 4;
-        pixels[pixelIdx] = r;
-        pixels[pixelIdx + 1] = g;
-        pixels[pixelIdx + 2] = b;
-        pixels[pixelIdx + 3] = a;
-      } else {
-        for (let dy = -radius; dy <= radius; dy++) {
-          for (let dx = -radius; dx <= radius; dx++) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
-            if (dx * dx + dy * dy <= radius * radius) {
-              const pixelIdx = (ny * cols + nx) * 4;
-              pixels[pixelIdx] = r;
-              pixels[pixelIdx + 1] = g;
-              pixels[pixelIdx + 2] = b;
-              pixels[pixelIdx + 3] = a;
-            }
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+          if (dx * dx + dy * dy <= radius * radius) {
+            const pixelIdx = (ny * cols + nx) * 4;
+            pixels[pixelIdx] = r;
+            pixels[pixelIdx + 1] = g;
+            pixels[pixelIdx + 2] = b;
+            pixels[pixelIdx + 3] = a;
           }
         }
       }
@@ -162,7 +227,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
     ctx.putImageData(imgData, 0, 0);
 
-    // Apply smooth bilinear interpolation by scaling to high-res raster
+    // Apply high-resolution scaling with bilinear smoothing to blend discrete grid steps into smooth weather gradients
     const smoothCanvas = document.createElement('canvas');
     smoothCanvas.width = cols * 4;
     smoothCanvas.height = rows * 4;
@@ -170,7 +235,29 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     if (sCtx) {
       sCtx.imageSmoothingEnabled = true;
       sCtx.imageSmoothingQuality = 'high';
+      sCtx.filter = 'blur(2px)';
       sCtx.drawImage(canvas, 0, 0, smoothCanvas.width, smoothCanvas.height);
+
+      // Apply Indonesia vector coastline and border mask (cuts the raster exactly along real island borders)
+      if (boundary) {
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = smoothCanvas.width;
+        maskCanvas.height = smoothCanvas.height;
+        const maskCtx = maskCanvas.getContext('2d');
+        if (maskCtx) {
+          drawBoundaryMask(maskCtx, boundary, maskCanvas.width, maskCanvas.height, {
+            west: minLon - step / 2,
+            east: maxLon + step / 2,
+            south: minLat - step / 2,
+            north: maxLat + step / 2,
+          });
+
+          // Composite operation: keep only pixels that fall strictly inside Indonesian land territory
+          sCtx.globalCompositeOperation = 'destination-in';
+          sCtx.filter = 'none';
+          sCtx.drawImage(maskCanvas, 0, 0);
+        }
+      }
     }
 
     const dataUrl = (sCtx ? smoothCanvas : canvas).toDataURL('image/png');
@@ -196,7 +283,14 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
         overlayRef.current = null;
       }
     };
-  }, [map, visible, data, type]);
+  }, [map, visible, data, type, boundary]);
+
+  // Dynamically update overlay opacity instantly when slider changes
+  useEffect(() => {
+    if (overlayRef.current) {
+      overlayRef.current.setOpacity(opacity);
+    }
+  }, [opacity]);
 
   // Dynamically update overlay opacity instantly when slider changes
   useEffect(() => {
