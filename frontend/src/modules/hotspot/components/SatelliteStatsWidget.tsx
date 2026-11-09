@@ -79,26 +79,23 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
     for (let i = 0; i < len; i++) {
       const item = hotspots[i];
       let conf = '';
+      let bright = 325;
 
       if (Array.isArray(item)) {
         conf = String(item[HOTSPOT_COL.CONFIDENCE] || '').toLowerCase();
+        bright = Number(item[HOTSPOT_COL.BRIGHTNESS]) || 325;
       } else if (item?.properties) {
         conf = String(item.properties.confidence || '').toLowerCase();
+        bright = Number(item.properties.brightness) || 325;
       } else if (item?.confidence) {
         conf = String(item.confidence || '').toLowerCase();
+        bright = Number(item.brightness) || 325;
       }
 
       let category: 'high' | 'med' | 'low' = 'low';
-      if (conf === 'h' || conf === 'high' || Number(conf) >= 80) {
+      if (bright >= 355 || conf === 'h' || conf === 'high' || Number(conf) >= 80) {
         category = 'high';
-      } else if (
-        conf === 'n' ||
-        conf === 'nominal' ||
-        conf === 'm' ||
-        conf === 'med' ||
-        conf === 'medium' ||
-        Number(conf) >= 30
-      ) {
+      } else if (bright >= 325 || conf === 'n' || conf === 'nominal' || Number(conf) >= 30) {
         category = 'med';
       }
 

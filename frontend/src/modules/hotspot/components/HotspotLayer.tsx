@@ -22,38 +22,40 @@ export interface HotspotStyle {
 }
 
 /**
- * Computes marker color & size based on confidence level, brightness, and FRP.
- * Green: Low | Yellow: Medium/Nominal | Red: High
+ * Standar Klasifikasi Suhu Kecerahan (Brightness Temperature Kanal I4 Satelit VIIRS):
+ * - >= 355 K (>= 82°C): Merah Ekstrem (Puncak pembakaran intensif)
+ * - 340 K - 354 K (67°C - 81°C): Oranye Tinggi (Api permukaan aktif)
+ * - 325 K - 339 K (52°C - 66°C): Kuning Sedang (Suhu hangat / api awal)
+ * - < 325 K (< 52°C): Hijau Rendah (Anomali hangat sisa pembakaran)
+ */
+export function getTemperatureColor(tempKelvin: number): {
+  bg: string;
+  borderColor: string;
+  level: 'high' | 'nominal' | 'low';
+  celsius: number;
+} {
+  const celsius = Math.round(tempKelvin - 273.15);
+  if (tempKelvin >= 355) {
+    return { bg: '#dc2626', borderColor: '#fca5a5', level: 'high', celsius };   // Merah Ekstrem
+  } else if (tempKelvin >= 340) {
+    return { bg: '#ea580c', borderColor: '#fdba74', level: 'high', celsius };   // Oranye Tinggi
+  } else if (tempKelvin >= 325) {
+    return { bg: '#eab308', borderColor: '#fef08a', level: 'nominal', celsius }; // Kuning Sedang
+  } else {
+    return { bg: '#16a34a', borderColor: '#86efac', level: 'low', celsius };     // Hijau Rendah
+  }
+}
+
+/**
+ * Menentukan warna dan ukuran marker individual berdasarkan suhu kecerahan (Kelvin/Celsius).
  */
 export function getHotspotStyleFromRow(row: HotspotMatrixRow): HotspotStyle {
-  const bright = row[HOTSPOT_COL.BRIGHTNESS] || 0;
-  const frp = row[HOTSPOT_COL.FRP] || 0;
-  const conf = String(row[HOTSPOT_COL.CONFIDENCE] || '').toLowerCase();
+  const bright = Number(row[HOTSPOT_COL.BRIGHTNESS]) || 325;
+  const frp = Number(row[HOTSPOT_COL.FRP]) || 0;
+  const { bg, borderColor, level } = getTemperatureColor(bright);
 
-  let color = '#16a34a';       // Green — Low
-  let fillColor = '#22c55e';
-  let level: 'high' | 'nominal' | 'low' = 'low';
-
-  if (conf === 'high' || conf === 'h' || Number(conf) >= 80 || bright >= 355) {
-    color = '#dc2626';         // Red — High
-    fillColor = '#ef4444';
-    level = 'high';
-  } else if (
-    conf === 'nominal' ||
-    conf === 'n' ||
-    conf === 'm' ||
-    conf === 'med' ||
-    conf === 'medium' ||
-    (Number(conf) >= 30 && Number(conf) < 80) ||
-    bright >= 325
-  ) {
-    color = '#ca8a04';         // Yellow — Medium / Nominal
-    fillColor = '#eab308';
-    level = 'nominal';
-  }
-
-  const radius = Math.min(Math.max(3.5 + (frp || 0) / 35, 4), 8);
-  return { color, fillColor, level, radius };
+  const radius = Math.min(Math.max(4 + (frp || 0) / 35, 4.5), 9);
+  return { color: borderColor, fillColor: bg, level, radius };
 }
 
 export function getHotspotStyle(props: any): HotspotStyle {
@@ -147,7 +149,7 @@ function createPopupContent(
         </div>
         <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
           <span class="hotspot-popup-label" style="color: #64748b;">Suhu Kecerahan:</span>
-          <strong class="hotspot-popup-val" style="color: #1e293b;">${brightness !== null ? Number(brightness).toFixed(1) + ' K' : 'N/A'}</strong>
+          <strong class="hotspot-popup-val" style="color: #1e293b;">${brightness !== null ? `${Number(brightness).toFixed(1)} K (${Math.round(Number(brightness) - 273.15)}°C)` : 'N/A'}</strong>
         </div>
         <div class="hotspot-popup-row" style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px;">
           <span class="hotspot-popup-label" style="color: #64748b;">Kekuatan Api (FRP):</span>
@@ -201,30 +203,25 @@ function createPopupContent(
 }
 
 /**
- * Creates lightweight, hardware-accelerated cluster badge.
- * Uses GPU translate3d with zero expensive spread box-shadows.
+ * Membuat badge cluster dengan warna berdasarkan RATA-RATA SUHU KECERAHAN titik di dalam cluster.
+ * - Rata-rata Suhu Ekstrem (>= 355 K / >= 82°C): Merah (#dc2626)
+ * - Rata-rata Suhu Tinggi (340 K - 354 K / 67°C - 81°C): Oranye (#ea580c)
+ * - Rata-rata Suhu Sedang (325 K - 339 K / 52°C - 66°C): Kuning (#eab308)
+ * - Rata-rata Suhu Rendah (< 325 K / < 52°C): Hijau (#16a34a)
  */
-function createClusterIcon(count: number): L.DivIcon {
+function createClusterIcon(count: number, avgBrightness: number = 330): L.DivIcon {
+  const { bg, borderColor, celsius } = getTemperatureColor(avgBrightness);
   let size = 34;
-  let bg = '#eab308';       // yellow
-  let borderColor = '#fef08a';
-  let formatted = String(count);
 
-  if (count >= 5000) {
-    size = 48;
-    bg = '#dc2626';         // crimson red
-    borderColor = '#fca5a5';
-    formatted = (count / 1000).toFixed(1) + 'k';
-  } else if (count >= 1000) {
-    size = 42;
-    bg = '#ea580c';         // deep orange
-    borderColor = '#fdba74';
-    formatted = (count / 1000).toFixed(1) + 'k';
+  if (count >= 1000) {
+    size = 46;
   } else if (count >= 100) {
-    size = 38;
-    bg = '#f59e0b';         // amber
-    borderColor = '#fde68a';
+    size = 40;
+  } else if (count >= 30) {
+    size = 36;
   }
+
+  const formatted = count >= 1000 ? (count / 1000).toFixed(1) + 'k' : String(count);
 
   return L.divIcon({
     html: `
@@ -237,17 +234,17 @@ function createClusterIcon(count: number): L.DivIcon {
         border-radius: 50%;
         font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
         font-weight: 800;
-        font-size: ${size >= 42 ? '12px' : '11px'};
+        font-size: ${size >= 40 ? '12px' : '11px'};
         color: #ffffff;
         background: ${bg};
-        border: 2px solid ${borderColor};
-        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        border: 2.5px solid ${borderColor};
+        box-shadow: 0 3px 10px rgba(0,0,0,0.38);
         transform: translate3d(0, 0, 0);
         will-change: transform;
         cursor: pointer;
         user-select: none;
       "
-      title="${count.toLocaleString()} titik api terdeteksi">
+      title="Klaster: ${count.toLocaleString()} titik api | Rata-rata Suhu: ${avgBrightness.toFixed(1)} K (${celsius}°C)">
         ${formatted}
       </div>
     `,
@@ -266,6 +263,10 @@ interface HotspotFeatureProperties {
   acq_date: string;
   acq_time: string;
   rawRow: HotspotMatrixRow;
+}
+
+interface HotspotClusterProperties {
+  sumBrightness: number;
 }
 
 /**
@@ -384,10 +385,16 @@ export default function HotspotLayer({
   const superclusterIndex = useMemo(() => {
     if (!activeHotspots || activeHotspots.length === 0) return null;
 
-    const index = new Supercluster<HotspotFeatureProperties>({
+    const index = new Supercluster<HotspotFeatureProperties, HotspotClusterProperties>({
       radius: 95,     // Regional radius to ensure 20-40 clean clusters across Indonesia
       maxZoom: 16,    // Stop clustering after zoom 16
-      minPoints: 2
+      minPoints: 2,
+      map: (props) => ({
+        sumBrightness: Number(props.brightness) || 325
+      }),
+      reduce: (accumulated, props) => {
+        accumulated.sumBrightness += props.sumBrightness;
+      }
     });
 
     const points: Array<PointFeature<HotspotFeatureProperties>> = [];
@@ -477,7 +484,9 @@ export default function HotspotLayer({
         if (isCluster && clusterProps) {
           const clusterId = clusterProps.cluster_id;
           const pointCount = clusterProps.point_count;
-          const icon = createClusterIcon(pointCount);
+          const sumBright = (clusterProps as any).sumBrightness ?? (325 * pointCount);
+          const avgBrightness = pointCount > 0 ? (sumBright / pointCount) : 325;
+          const icon = createClusterIcon(pointCount, avgBrightness);
 
           const clusterMarker = L.marker([lat, lng], {
             icon,
