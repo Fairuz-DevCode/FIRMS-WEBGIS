@@ -22,11 +22,12 @@ export interface HotspotStyle {
 }
 
 /**
- * Standar Klasifikasi Suhu Kecerahan (Brightness Temperature Kanal I4 Satelit VIIRS):
- * - >= 355 K (>= 82°C): Merah Ekstrem (Puncak pembakaran intensif)
- * - 340 K - 354 K (67°C - 81°C): Oranye Tinggi (Api permukaan aktif)
- * - 325 K - 339 K (52°C - 66°C): Kuning Sedang (Suhu hangat / api awal)
- * - < 325 K (< 52°C): Hijau Rendah (Anomali hangat sisa pembakaran)
+ * Palet Warna Titik Api & Klaster Berdasarkan Suhu Kecerahan (Tanpa Warna Hijau):
+ * Karena titik api adalah potensi kebakaran/bencana, warna menggunakan tema api murni:
+ * - >= 350 K (>= 77°C) : 🔴 Merah Pekat / Ekstrem (Darurat)
+ * - 335 K - 349 K (62°C - 76°C) : 🟠 Oranye Pekat (Tinggi)
+ * - 325 K - 334 K (52°C - 61°C) : 🟡 Amber / Oranye Cerah (Sedang)
+ * - < 325 K (< 52°C)   : 🟡 Kuning Emas (Waspada / Awal)
  */
 export function getTemperatureColor(tempKelvin: number): {
   bg: string;
@@ -35,14 +36,14 @@ export function getTemperatureColor(tempKelvin: number): {
   celsius: number;
 } {
   const celsius = Math.round(tempKelvin - 273.15);
-  if (tempKelvin >= 355) {
+  if (tempKelvin >= 350) {
     return { bg: '#dc2626', borderColor: '#fca5a5', level: 'high', celsius };   // Merah Ekstrem
-  } else if (tempKelvin >= 340) {
-    return { bg: '#ea580c', borderColor: '#fdba74', level: 'high', celsius };   // Oranye Tinggi
+  } else if (tempKelvin >= 335) {
+    return { bg: '#ea580c', borderColor: '#fdba74', level: 'high', celsius };   // Oranye Pekat
   } else if (tempKelvin >= 325) {
-    return { bg: '#eab308', borderColor: '#fef08a', level: 'nominal', celsius }; // Kuning Sedang
+    return { bg: '#f59e0b', borderColor: '#fde68a', level: 'nominal', celsius }; // Amber
   } else {
-    return { bg: '#16a34a', borderColor: '#86efac', level: 'low', celsius };     // Hijau Rendah
+    return { bg: '#eab308', borderColor: '#fef08a', level: 'low', celsius };     // Kuning Emas
   }
 }
 
