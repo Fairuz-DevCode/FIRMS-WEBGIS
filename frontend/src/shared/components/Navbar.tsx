@@ -152,6 +152,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                 className="h-8 rounded-lg border border-white/20 bg-white/10 text-white px-2.5 pr-7 text-xs font-semibold hover:border-white/40 hover:bg-white/20 transition-all cursor-pointer appearance-none shadow-xs focus:outline-none"
                 title="Pilih Sensor Satelit NASA FIRMS"
               >
+                <option value="ALL" className="bg-slate-800 text-white">🛰️ Semua Satelit (Default)</option>
                 <option value="VIIRS_SNPP_NRT" className="bg-slate-800 text-white">🛰️ VIIRS S-NPP (375m)</option>
                 <option value="VIIRS_NOAA20_NRT" className="bg-slate-800 text-white">🛰️ VIIRS NOAA-20 (375m)</option>
                 <option value="VIIRS_NOAA21_NRT" className="bg-slate-800 text-white">🛰️ VIIRS NOAA-21 (375m)</option>
@@ -264,7 +265,8 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                         onChange={(e) => props.onSensorChange?.(e.target.value as SensorType)}
                         className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 pr-8 text-xs font-semibold text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer"
                       >
-                        <option value="VIIRS_SNPP_NRT">🛰️ VIIRS S-NPP (375m - Default)</option>
+                        <option value="ALL">🛰️ Semua Satelit (Default)</option>
+                        <option value="VIIRS_SNPP_NRT">🛰️ VIIRS S-NPP (375m)</option>
                         <option value="VIIRS_NOAA20_NRT">🛰️ VIIRS NOAA-20 (375m)</option>
                         <option value="VIIRS_NOAA21_NRT">🛰️ VIIRS NOAA-21 (375m)</option>
                         <option value="MODIS_NRT">🛰️ MODIS Terra / Aqua (1km)</option>

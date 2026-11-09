@@ -1,4 +1,5 @@
 export type SensorType =
+  | 'ALL'
   | 'VIIRS_SNPP_NRT'
   | 'VIIRS_NOAA20_NRT'
   | 'VIIRS_NOAA21_NRT'

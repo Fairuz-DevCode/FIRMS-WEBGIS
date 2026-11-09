@@ -76,7 +76,7 @@ function MapPaneInitializer() {
 export const MapView: React.FC = () => {
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedModule, setSelectedModule] = useState<ResearchModule>('BATAS_WILAYAH');
-  const [sensor, setSensor] = useState<SensorType>('VIIRS_SNPP_NRT');
+  const [sensor, setSensor] = useState<SensorType>('ALL');
   const [dayRange, setDayRange] = useState<number>(1);
   const [dateFilterMode, setDateFilterMode] = useState<'range' | 'single' | 'days'>('single');
   const [singleDate, setSingleDate] = useState<string>(todayIso);
