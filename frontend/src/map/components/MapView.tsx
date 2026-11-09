@@ -20,6 +20,7 @@ import {
   HotspotLayer, 
   HotspotAnalyticsSidebar, 
   SatelliteStatsWidget, 
+  getHotspotSatellite,
   SelectedHotspotAnalytics,
   SensorType,
   HotspotMatrixRow,
@@ -207,6 +208,13 @@ export const MapView: React.FC = () => {
   const displayedHotspots = useMemo(() => {
     let list = hotspotData;
 
+    // Filter by selected Satellite Sensor
+    if (sensor === 'VIIRS_SNPP_NRT') {
+      list = list.filter(row => getHotspotSatellite(row) === 'SNPP');
+    } else if (sensor === 'VIIRS_NOAA20_NRT') {
+      list = list.filter(row => getHotspotSatellite(row) === 'NOAA20');
+    }
+
     // 1. Exclude Malaysia and Singapore points completely
     list = list.filter(row => {
       const lat = row[HOTSPOT_COL.LAT];
@@ -289,7 +297,7 @@ export const MapView: React.FC = () => {
     }
 
     return list;
-  }, [hotspotData, peatlandOnly, peatlandPolygons, selectedIsland, selectedProvince]);
+  }, [hotspotData, peatlandOnly, peatlandPolygons, selectedIsland, selectedProvince, sensor]);
 
   // Auto enable land cover when module is PENGGUNAAN_LAHAN
   useEffect(() => {

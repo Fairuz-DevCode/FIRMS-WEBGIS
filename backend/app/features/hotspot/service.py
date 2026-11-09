@@ -2,7 +2,7 @@ import datetime
 import hashlib
 import json
 from typing import Optional, Dict, Any, List
-from sqlalchemy import select, func, cast, Integer, case, or_, and_
+from sqlalchemy import select, func, cast, Integer, case, or_, and_, not_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.hotspot.models import Hotspot
 from app.core.utils.cache import cache
@@ -127,6 +127,32 @@ async def get_hotspots_from_db(
             conditions.append(Hotspot.brightness >= float(minBrightness))
         if minFrp is not None:
             conditions.append(Hotspot.frp >= float(minFrp))
+
+        # 5b. Satellite sensor filtering (VIIRS S-NPP vs NOAA-20 based on acquisition overpass)
+        if sensor == "VIIRS_NOAA20_NRT":
+            safe_numeric_time = case(
+                (Hotspot.acq_time.op("~")(r"^\d+$"), cast(Hotspot.acq_time, Integer)),
+                else_=None
+            )
+            conditions.append(
+                or_(
+                    safe_numeric_time.between(430, 545),
+                    safe_numeric_time.between(1715, 1830)
+                )
+            )
+        elif sensor == "VIIRS_SNPP_NRT":
+            safe_numeric_time = case(
+                (Hotspot.acq_time.op("~")(r"^\d+$"), cast(Hotspot.acq_time, Integer)),
+                else_=None
+            )
+            conditions.append(
+                not_(
+                    or_(
+                        safe_numeric_time.between(430, 545),
+                        safe_numeric_time.between(1715, 1830)
+                    )
+                )
+            )
 
         # 6. Apply filter list via generator/sequence unpacking
         if conditions:

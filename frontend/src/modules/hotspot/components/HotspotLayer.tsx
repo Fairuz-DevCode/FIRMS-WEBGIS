@@ -11,6 +11,7 @@ import 'leaflet.heat';
 
 import { HotspotMatrixRow, SensorType, HOTSPOT_COL, SelectedHotspotAnalytics } from '../types/hotspot.types';
 import { useHotspots } from '../hooks/useHotspots';
+import { getHotspotSatellite } from './SatelliteStatsWidget';
 import { isPointInPeatlands } from '../../../shared/utils/spatial.utils';
 
 export interface HotspotStyle {
@@ -517,7 +518,13 @@ export default function HotspotLayer({
             renderer: canvasRenderer
           });
 
-          circleMarker.bindPopup(() => createPopupContent(leafProps.rawRow, sensor, baseContext), {
+          const satLabel = sensor === 'ALL'
+            ? (getHotspotSatellite(leafProps.rawRow) === 'NOAA20' ? 'VIIRS NOAA-20 (375m)' : 'VIIRS S-NPP (375m)')
+            : sensor === 'VIIRS_NOAA20_NRT'
+              ? 'VIIRS NOAA-20 (375m)'
+              : 'VIIRS S-NPP (375m)';
+
+          circleMarker.bindPopup(() => createPopupContent(leafProps.rawRow, satLabel, baseContext), {
             maxWidth: 280,
             className: 'hotspot-leaflet-popup'
           });

@@ -155,8 +155,6 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                 <option value="ALL" className="bg-slate-800 text-white">🛰️ Semua Satelit (Default)</option>
                 <option value="VIIRS_SNPP_NRT" className="bg-slate-800 text-white">🛰️ VIIRS S-NPP (375m)</option>
                 <option value="VIIRS_NOAA20_NRT" className="bg-slate-800 text-white">🛰️ VIIRS NOAA-20 (375m)</option>
-                <option value="VIIRS_NOAA21_NRT" className="bg-slate-800 text-white">🛰️ VIIRS NOAA-21 (375m)</option>
-                <option value="MODIS_NRT" className="bg-slate-800 text-white">🛰️ MODIS Terra/Aqua (1km)</option>
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/70 pointer-events-none" />
             </div>
@@ -268,8 +266,6 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                         <option value="ALL">🛰️ Semua Satelit (Default)</option>
                         <option value="VIIRS_SNPP_NRT">🛰️ VIIRS S-NPP (375m)</option>
                         <option value="VIIRS_NOAA20_NRT">🛰️ VIIRS NOAA-20 (375m)</option>
-                        <option value="VIIRS_NOAA21_NRT">🛰️ VIIRS NOAA-21 (375m)</option>
-                        <option value="MODIS_NRT">🛰️ MODIS Terra / Aqua (1km)</option>
                       </select>
                       <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                     </div>

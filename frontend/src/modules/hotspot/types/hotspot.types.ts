@@ -1,9 +1,7 @@
 export type SensorType =
   | 'ALL'
   | 'VIIRS_SNPP_NRT'
-  | 'VIIRS_NOAA20_NRT'
-  | 'VIIRS_NOAA21_NRT'
-  | 'MODIS_NRT';
+  | 'VIIRS_NOAA20_NRT';
 
 /**
  * Standard column index mapping for Flat Array Matrix:

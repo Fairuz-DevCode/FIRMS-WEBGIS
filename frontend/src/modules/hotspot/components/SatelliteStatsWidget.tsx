@@ -14,6 +14,30 @@ interface Counter {
   total: number;
 }
 
+/**
+ * Mendeteksi satelit (S-NPP vs NOAA-20) berdasarkan acquisition time overpass orbit NASA.
+ * NOAA-20: overpass siang ~04:30 - 05:45 UTC, malam ~17:15 - 18:30 UTC
+ * S-NPP  : overpass siang ~05:46 - 07:15 UTC, malam ~15:45 - 17:14 UTC
+ */
+export function getHotspotSatellite(item: HotspotMatrixRow | any): 'SNPP' | 'NOAA20' {
+  let timeStr = '';
+  if (Array.isArray(item)) {
+    timeStr = String(item[HOTSPOT_COL.ACQ_TIME] || '');
+  } else if (item?.properties?.acq_time) {
+    timeStr = String(item.properties.acq_time);
+  } else if (item?.acq_time) {
+    timeStr = String(item.acq_time);
+  }
+
+  const timeNum = parseInt(timeStr, 10);
+  if (!isNaN(timeNum)) {
+    if ((timeNum >= 430 && timeNum <= 545) || (timeNum >= 1715 && timeNum <= 1830)) {
+      return 'NOAA20';
+    }
+  }
+  return 'SNPP';
+}
+
 const StatRow: React.FC<{ title: string; data: Counter; withTitles?: boolean }> = ({
   title,
   data,
@@ -43,30 +67,25 @@ const StatRow: React.FC<{ title: string; data: Counter; withTitles?: boolean }> 
 
 export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
   hotspots = [],
-  currentSensor = 'VIIRS_SNPP_NRT',
+  currentSensor = 'ALL',
 }) => {
   const [isExpandedMobile, setIsExpandedMobile] = useState<boolean>(false);
 
-  const { snpp, terraAqua, noaa20, noaa21 } = React.useMemo(() => {
+  const { snpp, noaa20 } = React.useMemo(() => {
     const s: Counter = { low: 0, med: 0, high: 0, total: 0 };
-    const ta: Counter = { low: 0, med: 0, high: 0, total: 0 };
     const n20: Counter = { low: 0, med: 0, high: 0, total: 0 };
-    const n21: Counter = { low: 0, med: 0, high: 0, total: 0 };
 
     const len = hotspots.length;
     for (let i = 0; i < len; i++) {
       const item = hotspots[i];
       let conf = '';
-      let sensor = currentSensor ? String(currentSensor).toUpperCase() : '';
 
       if (Array.isArray(item)) {
         conf = String(item[HOTSPOT_COL.CONFIDENCE] || '').toLowerCase();
       } else if (item?.properties) {
         conf = String(item.properties.confidence || '').toLowerCase();
-        if (item.properties.sensor) sensor = String(item.properties.sensor).toUpperCase();
       } else if (item?.confidence) {
         conf = String(item.confidence || '').toLowerCase();
-        if (item.sensor) sensor = String(item.sensor).toUpperCase();
       }
 
       let category: 'high' | 'med' | 'low' = 'low';
@@ -83,13 +102,16 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
         category = 'med';
       }
 
-      if (sensor.includes('MODIS') || sensor.includes('TERRA') || sensor.includes('AQUA')) {
-        ta[category]++;
-        ta.total++;
-      } else if (sensor.includes('NOAA21') || sensor.includes('NOAA-21')) {
-        n21[category]++;
-        n21.total++;
-      } else if (sensor.includes('NOAA20') || sensor.includes('NOAA-20')) {
+      let sat: 'SNPP' | 'NOAA20' = 'SNPP';
+      if (currentSensor === 'VIIRS_NOAA20_NRT') {
+        sat = 'NOAA20';
+      } else if (currentSensor === 'VIIRS_SNPP_NRT') {
+        sat = 'SNPP';
+      } else {
+        sat = getHotspotSatellite(item);
+      }
+
+      if (sat === 'NOAA20') {
         n20[category]++;
         n20.total++;
       } else {
@@ -98,8 +120,17 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
       }
     }
 
-    return { snpp: s, terraAqua: ta, noaa20: n20, noaa21: n21 };
+    return { snpp: s, noaa20: n20 };
   }, [hotspots, currentSensor]);
+
+  const showAll = currentSensor === 'ALL';
+  const showSnpp = showAll || currentSensor === 'VIIRS_SNPP_NRT';
+  const showNoaa20 = showAll || currentSensor === 'VIIRS_NOAA20_NRT';
+
+  const totalLow = (showSnpp ? snpp.low : 0) + (showNoaa20 ? noaa20.low : 0);
+  const totalMed = (showSnpp ? snpp.med : 0) + (showNoaa20 ? noaa20.med : 0);
+  const totalHigh = (showSnpp ? snpp.high : 0) + (showNoaa20 ? noaa20.high : 0);
+  const grandTotal = (showSnpp ? snpp.total : 0) + (showNoaa20 ? noaa20.total : 0);
 
   return (
     <div className="w-full">
@@ -116,14 +147,14 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
           </div>
 
           <div className="flex items-center gap-2 font-mono text-[11px] font-bold">
-            <span className="text-green-600">● {snpp.low}</span>
-            <span className="text-yellow-600">● {snpp.med}</span>
-            <span className="text-red-600">● {snpp.high}</span>
+            <span className="text-green-600">● {totalLow}</span>
+            <span className="text-yellow-600">● {totalMed}</span>
+            <span className="text-red-600">● {totalHigh}</span>
           </div>
 
           <div className="flex items-center gap-1">
             <span className="font-extrabold text-slate-900 text-xs bg-slate-100 px-1.5 py-0.5 rounded">
-              {snpp.total}
+              {grandTotal}
             </span>
             <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
           </div>
@@ -145,17 +176,23 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
             type="button"
             onClick={() => setIsExpandedMobile(false)}
             className="md:hidden p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
-            
             title="Kecilkan widget"
           >
             <ChevronUp className="h-4 w-4" />
           </button>
         </div>
 
-        <StatRow title="VIIRS S-NPP (375m)" data={snpp} withTitles />
-        {terraAqua.total > 0 && <StatRow title="NASA-TERRA/AQUA" data={terraAqua} />}
-        {noaa20.total > 0 && <StatRow title="NASA-NOAA20" data={noaa20} />}
-        {noaa21.total > 0 && <StatRow title="NASA-NOAA21" data={noaa21} />}
+        {showSnpp && <StatRow title="VIIRS S-NPP (375m)" data={snpp} withTitles={!showNoaa20} />}
+        {showNoaa20 && <StatRow title="VIIRS NOAA-20 (375m)" data={noaa20} withTitles={!showSnpp} />}
+
+        {showAll && (
+          <div className="mt-1 flex items-center justify-between border-t border-slate-200/90 pt-1.5 text-slate-700">
+            <span className="text-[0.72rem] font-bold">Total Hotspot:</span>
+            <span className="rounded bg-emerald-100/80 px-2 py-0.5 font-mono text-[0.85rem] font-extrabold text-emerald-900 border border-emerald-200/60">
+              {grandTotal} Titik
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
