@@ -196,15 +196,25 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     const imgData = ctx.createImageData(cols, rows);
     const pixels = imgData.data;
 
-    // Point radius: 1 pixel spread for dense data to guarantee complete overlap without gaps
-    // 3 pixels for dynamic / sparse grid
-    const radius = data.length < 5000 ? 3 : 1;
+    // Two-pass normalized spatial value interpolation:
+    // 1. Ambil data aktual dan akumulasi nilai terbobot (IDW / Smooth Kernel)
+    // 2. Hitung nilai interpolasi kontinu di setiap titik, lalu warnai (Color Transfer Function)
+    const valSum = new Float32Array(cols * rows);
+    const weightSum = new Float32Array(cols * rows);
 
-    // Map each data point into the continuous grid surface
+    // Radius sel grid: resolusi 0.1 deg/sel.
+    // Untuk grid dinamis 0.5 deg (~5 sel), radius 6 menjamin cakupan kontinu tanpa garis-garis atau celah
+    const interpRadius = data.length < 5000 ? 6 : 2;
+
     for (let i = 0; i < data.length; i++) {
       const [lat, lng, val] = data[i];
-      if (lat === undefined || lng === undefined || val === undefined) continue;
+      if (lat === undefined || lng === undefined || val === null || val === undefined) continue;
       if (!isInIndonesia(lng, lat)) continue;
+
+      // Abaikan data anomali / dummy laut / null
+      if (type === 'soil_moisture' && val <= 0.01) continue;
+      if (type === 'temperature' && val < 5) continue;
+      if (type === 'rainfall' && val < 0) continue;
 
       // Col (X) from west (95.0) to east (141.0)
       const x = Math.round((lng - minLon) / step);
@@ -213,21 +223,36 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
       if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
 
-      const [r, g, b, a] = getGridColorRgba(type, val);
-
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
-          if (dx * dx + dy * dy <= radius * radius) {
-            const pixelIdx = (ny * cols + nx) * 4;
-            pixels[pixelIdx] = r;
-            pixels[pixelIdx + 1] = g;
-            pixels[pixelIdx + 2] = b;
-            pixels[pixelIdx + 3] = a;
+      for (let dy = -interpRadius; dy <= interpRadius; dy++) {
+        for (let dx = -interpRadius; dx <= interpRadius; dx++) {
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= interpRadius * interpRadius) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+              const idx = ny * cols + nx;
+              const dist = Math.sqrt(d2);
+              // Smooth cosine weight falloff (mencegah artefak garis dan batas kaku)
+              const w = Math.cos((dist / interpRadius) * (Math.PI / 2));
+              valSum[idx] += val * w;
+              weightSum[idx] += w;
+            }
           }
         }
+      }
+    }
+
+    // Ambil data nilai kontinu yang telah diinterpolasi, baru diwarnai
+    for (let idx = 0; idx < cols * rows; idx++) {
+      const totalW = weightSum[idx];
+      if (totalW > 0.001) {
+        const interpolatedVal = valSum[idx] / totalW;
+        const [r, g, b, a] = getGridColorRgba(type, interpolatedVal);
+        const pixelIdx = idx * 4;
+        pixels[pixelIdx] = r;
+        pixels[pixelIdx + 1] = g;
+        pixels[pixelIdx + 2] = b;
+        pixels[pixelIdx + 3] = a;
       }
     }
 

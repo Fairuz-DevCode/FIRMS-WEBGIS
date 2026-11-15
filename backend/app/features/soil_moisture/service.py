@@ -5,7 +5,7 @@ from app.core.utils.cache import cache
 
 class SoilMoistureService:
     @classmethod
-    async def get_soil_moisture_grid_from_db(cls, db: AsyncSession, limit: int = 3000, date_str: Optional[str] = None) -> Dict[str, Any]:
+    async def get_soil_moisture_grid_from_db(cls, db: AsyncSession, limit: int = 20000, date_str: Optional[str] = None) -> Dict[str, Any]:
         """
         Get soil moisture grid and stats directly from PostGIS database.
         If date_str provided, filters by that date or closest date.
@@ -29,6 +29,7 @@ class SoilMoistureService:
                         FROM soil_moisture_data, target_time
                         WHERE waktu = target_time.matched_time
                           AND is_indonesia = TRUE
+                          AND soil_moisture IS NOT NULL AND soil_moisture > 0.01
                         LIMIT :limit
                     )
                     SELECT 
@@ -47,6 +48,7 @@ class SoilMoistureService:
                         FROM soil_moisture_data
                         WHERE waktu = (SELECT MAX(waktu) FROM soil_moisture_data)
                           AND is_indonesia = TRUE
+                          AND soil_moisture IS NOT NULL AND soil_moisture > 0.01
                         LIMIT :limit
                     )
                     SELECT 

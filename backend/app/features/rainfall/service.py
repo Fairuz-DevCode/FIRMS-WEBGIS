@@ -5,7 +5,7 @@ from app.core.utils.cache import cache
 
 class RainfallService:
     @classmethod
-    async def get_rainfall_grid_from_db(cls, db: AsyncSession, limit: int = 3000, date_str: Optional[str] = None) -> Dict[str, Any]:
+    async def get_rainfall_grid_from_db(cls, db: AsyncSession, limit: int = 20000, date_str: Optional[str] = None) -> Dict[str, Any]:
         """
         Get rainfall grid and stats directly from PostGIS database.
         If date_str provided, filters by that date or closest date.
@@ -29,6 +29,7 @@ class RainfallService:
                         FROM rainfall_data, target_time
                         WHERE waktu = target_time.matched_time
                           AND is_indonesia = TRUE
+                          AND curah_hujan_mm IS NOT NULL
                         LIMIT :limit
                     )
                     SELECT 
@@ -47,6 +48,7 @@ class RainfallService:
                         FROM rainfall_data
                         WHERE waktu = (SELECT MAX(waktu) FROM rainfall_data)
                           AND is_indonesia = TRUE
+                          AND curah_hujan_mm IS NOT NULL
                         LIMIT :limit
                     )
                     SELECT 

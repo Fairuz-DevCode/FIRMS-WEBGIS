@@ -20,7 +20,7 @@ class TemperatureService:
                 query = text("""
                     WITH target_time AS (
                         SELECT COALESCE(
-                            (SELECT MAX(waktu) FROM temperature WHERE waktu::date = :target_date),
+                            (SELECT MAX(waktu) FROM temperature WHERE waktu >= CAST(:target_date AS timestamp) AND waktu < CAST(:target_date AS timestamp) + interval '1 day'),
                             (SELECT MAX(waktu) FROM temperature)
                         ) as matched_time
                     ),
@@ -29,6 +29,7 @@ class TemperatureService:
                         FROM temperature, target_time
                         WHERE waktu = target_time.matched_time
                           AND is_indonesia = TRUE
+                          AND suhu_celsius IS NOT NULL AND suhu_celsius > 5
                         LIMIT :limit
                     )
                     SELECT
@@ -47,6 +48,7 @@ class TemperatureService:
                         FROM temperature
                         WHERE waktu = (SELECT MAX(waktu) FROM temperature)
                           AND is_indonesia = TRUE
+                          AND suhu_celsius IS NOT NULL AND suhu_celsius > 5
                         LIMIT :limit
                     )
                     SELECT

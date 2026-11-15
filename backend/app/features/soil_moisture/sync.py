@@ -24,12 +24,14 @@ async def sync_soil_moisture_records(records: List[Dict[str, Any]], sync_time: O
         lat = float(r["latitude"])
         lon = float(r["longitude"])
         soil_val = r.get("soil_moisture")
+        if soil_val is None or float(soil_val) <= 0.001:
+            continue
 
         rows.append({
             "waktu": timestamp,
             "latitude": lat,
             "longitude": lon,
-            "soil_moisture": float(soil_val) if soil_val is not None else 0.0,
+            "soil_moisture": float(soil_val),
             "is_indonesia": True,
             "geom": from_shape(Point(lon, lat), srid=4326)
         })
