@@ -177,27 +177,20 @@ async def sync_nasa_firms_data(
             cache.clear()
             print(f"✅ [FIRMS Sync Success] Successfully synced {inserted_count} new hotspot records from {len(target_sources)} satellites (skipped {len(records_to_insert) - len(filtered_records)} existing).")
 
-            # Enrich province and peatland flags for newly synced records
+            # Enrich peatland flags for newly synced records
             try:
-                sql_province = text("""
-                    UPDATE hotspots h
-                    SET province = b.name
-                    FROM indonesia_boundary b
-                    WHERE h.province IS NULL AND ST_Intersects(h.geom, b.geom);
-                """)
-                await session.execute(sql_province)
-
                 sql_peatland = text("""
                     UPDATE hotspots h
                     SET is_peatland = TRUE
                     FROM peatlands p
-                    WHERE h.province IS NOT NULL AND h.is_peatland = FALSE AND h.geom && p.geom AND ST_Intersects(h.geom, p.geom);
+                    WHERE (h.is_peatland IS NULL OR h.is_peatland = FALSE)
+                      AND h.geom && p.geom AND ST_Intersects(h.geom, p.geom);
                 """)
                 await session.execute(sql_peatland)
                 await session.commit()
-                print("✅ [FIRMS Sync] Spatial attributes (province & peatland) enriched.")
+                print("✅ [FIRMS Sync] Peatland spatial attributes enriched.")
             except Exception as e_enrich:
-                print(f"⚠️ [FIRMS Sync Warning] Spatial enrichment skipped/failed: {e_enrich}")
+                print(f"⚠️ [FIRMS Sync Warning] Peatland enrichment skipped/failed: {e_enrich}")
 
             # Otomatis sync iklim dinamis (suhu, hujan, kelembapan) untuk hotspot baru yang baru diinsert
             if filtered_records:

@@ -59,7 +59,7 @@ export const RegionFilter: React.FC<RegionFilterProps> = ({
               >
                 {ISLANDS.map((island) => (
                   <option key={island.id} value={island.id}>
-                    🏝️ {island.name}
+                    {island.name}
                   </option>
                 ))}
               </select>
@@ -75,10 +75,10 @@ export const RegionFilter: React.FC<RegionFilterProps> = ({
                 onChange={(e) => onProvinceChange(e.target.value)}
                 className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 pr-8 text-xs font-semibold text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer"
               >
-                <option value="ALL">🏛️ Semua Provinsi</option>
+                <option value="ALL">Semua Provinsi</option>
                 {availableProvinces.map((prov) => (
                   <option key={prov.id} value={prov.id}>
-                    📍 {prov.name}
+                    {prov.name}
                   </option>
                 ))}
               </select>
@@ -95,19 +95,19 @@ export const RegionFilter: React.FC<RegionFilterProps> = ({
       <button
         type="button"
         onClick={onToggle}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all select-none shadow-xs ${
+        className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all select-none cursor-pointer ${
           isOpen
-            ? 'border-white bg-white text-slate-900 shadow-md'
-            : 'border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20'
+            ? 'bg-white/20 text-white shadow-xs'
+            : 'text-white/90 hover:text-white hover:bg-white/10'
         }`}
       >
-        <MapPin className={`h-3.5 w-3.5 ${isOpen ? 'text-emerald-700' : 'text-emerald-300'}`} />
-        <span className="truncate max-w-[120px]">{regionLabel}</span>
-        <ChevronDown className="h-3 w-3 opacity-75" />
+        <MapPin className="h-4 w-4 md:h-4.5 md:w-4.5 text-emerald-300 shrink-0" />
+        <span className="truncate max-w-[130px]">{regionLabel}</span>
+        <ChevronDown className="h-3.5 w-3.5 opacity-75" />
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-xl z-[1500] animate-in fade-in zoom-in-95 duration-100 space-y-3">
+        <div className="absolute left-0 top-full mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3.5 text-xs text-slate-800 shadow-xl z-[1500] animate-in fade-in zoom-in-95 duration-100 space-y-3">
           <div className="font-bold text-slate-900 pb-1.5 border-b border-slate-100 flex items-center justify-between">
             <span>Pilih Cakupan Wilayah</span>
           </div>
@@ -123,7 +123,7 @@ export const RegionFilter: React.FC<RegionFilterProps> = ({
               >
                 {ISLANDS.map((island) => (
                   <option key={island.id} value={island.id}>
-                    🏝️ {island.name}
+                    {island.name}
                   </option>
                 ))}
               </select>
@@ -140,10 +140,10 @@ export const RegionFilter: React.FC<RegionFilterProps> = ({
                 onChange={(e) => onProvinceChange(e.target.value)}
                 className="w-full h-8 rounded-lg border border-slate-200 bg-slate-50 px-2.5 pr-7 text-xs font-semibold text-slate-800 shadow-2xs focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer"
               >
-                <option value="ALL">🏛️ Semua Provinsi</option>
+                <option value="ALL">Semua Provinsi</option>
                 {availableProvinces.map((prov) => (
                   <option key={prov.id} value={prov.id}>
-                    📍 {prov.name}
+                    {prov.name}
                   </option>
                 ))}
               </select>

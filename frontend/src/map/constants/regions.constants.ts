@@ -17,7 +17,7 @@ export interface Province {
 
 export const ISLANDS: Island[] = [
   { id: 'DEFAULT', name: 'Prioritas (Sumatera, Kalimantan, Papua)', center: [-0.7893, 113.9213], zoom: 5, bbox: [95, -11, 141, 6.1] },
-  { id: 'ALL', name: 'Seluruh Indonesia (Semua Pulau)', center: [-0.7893, 113.9213], zoom: 5, bbox: [94, -11, 141.5, 6.5] },
+  { id: 'ALL', name: 'Seluruh Indonesia', center: [-0.7893, 113.9213], zoom: 5, bbox: [94, -11, 141.5, 6.5] },
   { id: 'SUMATERA', name: 'Pulau Sumatera', center: [-0.5, 101.5], zoom: 6, bbox: [95, -6, 109, 6.1] },
   { id: 'KALIMANTAN', name: 'Pulau Kalimantan', center: [-1, 113.5], zoom: 6, bbox: [108.5, -4.5, 119.2, 4.5] },
   { id: 'PAPUA', name: 'Pulau Papua', center: [-4, 138], zoom: 6, bbox: [130.5, -9.5, 141, 1] },

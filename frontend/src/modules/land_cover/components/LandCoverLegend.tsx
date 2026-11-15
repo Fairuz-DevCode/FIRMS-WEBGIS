@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import { Layers, ChevronUp, ChevronDown, Info } from 'lucide-react';
+import { Layers, ChevronUp, ChevronDown } from 'lucide-react';
 import { ESRI_LAND_COVER_CLASSES } from '../constants/landCover.constants';
 
 interface LandCoverLegendProps {
-  opacity: number;
-  onOpacityChange: (opacity: number) => void;
+  opacity?: number;
+  onOpacityChange?: (opacity: number) => void;
   activeProviderName: string;
 }
 
 export const LandCoverLegend: React.FC<LandCoverLegendProps> = ({
-  opacity,
-  onOpacityChange,
   activeProviderName,
 }) => {
   // Default collapsed on mobile screens (< 768px) to prevent screen overcrowding
@@ -59,25 +57,6 @@ export const LandCoverLegend: React.FC<LandCoverLegendProps> = ({
                 <span className="text-[11px] font-medium text-slate-700 truncate flex-1">{item.label}</span>
               </div>
             ))}
-          </div>
-
-          {/* Opacity Slider */}
-          <div className="pt-2 border-t border-slate-200 space-y-1">
-            <div className="flex justify-between items-center text-[10px] text-slate-600">
-              <span className="flex items-center gap-1 font-medium">
-                <Info className="w-3 h-3 text-emerald-600" /> Transparansi:
-              </span>
-              <span className="font-mono font-bold text-emerald-600">{Math.round(opacity * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.05"
-              value={opacity}
-              onChange={(e) => onOpacityChange(parseFloat(e.target.value))}
-              className="w-full accent-emerald-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
-            />
           </div>
         </div>
       )}

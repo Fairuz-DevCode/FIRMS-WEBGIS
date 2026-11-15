@@ -25,6 +25,7 @@ yarn-error.log*
 # IDE & OS
 .vscode/
 .idea/
+.agents/
 *.swp
 *.swo
 .DS_Store
@@ -33,6 +34,7 @@ Thumbs.db
 # Docker & Database Volumes
 postgres_db_data/
 *.sqlite3
+docker-compose.override.yml
 
 # Large Dataset Files (Sesuai permintaan: data/ tidak masuk git)
 data/

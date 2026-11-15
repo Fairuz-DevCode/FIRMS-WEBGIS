@@ -7,6 +7,12 @@ interface SatelliteStatsProps {
   currentSensor?: SensorType | string;
 }
 
+/**
+ * 3 Range Klasifikasi Suhu Kecerahan Titik Api (Kanal I4 Satelit VIIRS 375m):
+ * - low  : < 335 K (< 62°C)       -> 🟡 Amber (Sedang)
+ * - med  : 335 - 349 K (62 - 76°C)-> 🟠 Oranye (Tinggi)
+ * - high : >= 350 K (>= 77°C)     -> 🔴 Merah Pekat (Ekstrem)
+ */
 interface Counter {
   low: number;
   med: number;
@@ -46,13 +52,13 @@ const StatRow: React.FC<{ title: string; data: Counter; withTitles?: boolean }> 
   <div className="flex flex-col gap-0.5">
     <div className="text-[0.72rem] font-bold tracking-wide text-slate-600">{title}</div>
     <div className="flex items-center gap-2.5 font-mono text-[0.82rem] font-bold">
-      <span className="text-green-600" title={withTitles ? 'Tingkat Kepercayaan Rendah (Green)' : undefined}>
+      <span className="text-amber-500" title={withTitles ? 'Suhu Sedang (< 335 K / < 62°C)' : undefined}>
         ● {data.low}
       </span>
-      <span className="text-yellow-600" title={withTitles ? 'Tingkat Kepercayaan Sedang (Yellow)' : undefined}>
+      <span className="text-orange-500" title={withTitles ? 'Suhu Tinggi (335 - 349 K / 62 - 76°C)' : undefined}>
         ● {data.med}
       </span>
-      <span className="text-red-600" title={withTitles ? 'Tingkat Kepercayaan Tinggi (Red)' : undefined}>
+      <span className="text-red-600" title={withTitles ? 'Suhu Ekstrem (≥ 350 K / ≥ 77°C)' : undefined}>
         ● {data.high}
       </span>
       <span
@@ -78,25 +84,23 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
     const len = hotspots.length;
     for (let i = 0; i < len; i++) {
       const item = hotspots[i];
-      let conf = '';
       let bright = 325;
 
       if (Array.isArray(item)) {
-        conf = String(item[HOTSPOT_COL.CONFIDENCE] || '').toLowerCase();
         bright = Number(item[HOTSPOT_COL.BRIGHTNESS]) || 325;
-      } else if (item?.properties) {
-        conf = String(item.properties.confidence || '').toLowerCase();
+      } else if (item?.properties?.brightness) {
         bright = Number(item.properties.brightness) || 325;
-      } else if (item?.confidence) {
-        conf = String(item.confidence || '').toLowerCase();
+      } else if (item?.brightness) {
         bright = Number(item.brightness) || 325;
       }
 
       let category: 'high' | 'med' | 'low' = 'low';
-      if (bright >= 355 || conf === 'h' || conf === 'high' || Number(conf) >= 80) {
+      if (bright >= 350) {
         category = 'high';
-      } else if (bright >= 325 || conf === 'n' || conf === 'nominal' || Number(conf) >= 30) {
+      } else if (bright >= 335) {
         category = 'med';
+      } else {
+        category = 'low';
       }
 
       let sat: 'SNPP' | 'NOAA20' = 'SNPP';
@@ -139,14 +143,14 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
           className="flex md:hidden w-full items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-md backdrop-blur-md text-xs select-none active:scale-98 transition-all"
         >
           <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
-            <Radio className="h-3 w-3 text-emerald-600 animate-pulse" />
+            <Radio className="h-3 w-3 text-orange-500 animate-pulse" />
             <span>FIRMS</span>
           </div>
 
           <div className="flex items-center gap-2 font-mono text-[11px] font-bold">
-            <span className="text-green-600">● {totalLow}</span>
-            <span className="text-yellow-600">● {totalMed}</span>
-            <span className="text-red-600">● {totalHigh}</span>
+            <span className="text-amber-500" title="Sedang (< 62°C)">● {totalLow}</span>
+            <span className="text-orange-500" title="Tinggi (62 - 76°C)">● {totalMed}</span>
+            <span className="text-red-600" title="Ekstrem (≥ 77°C)">● {totalHigh}</span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -166,7 +170,7 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
       >
         <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 text-[0.68rem] font-bold uppercase tracking-wider text-slate-500">
           <div className="flex items-center gap-1.5">
-            <Radio className="h-3.5 w-3.5 text-green-600" />
+            <Radio className="h-3.5 w-3.5 text-orange-500" />
             <span>Data Satelit NASA FIRMS</span>
           </div>
           <button
@@ -179,17 +183,10 @@ export const SatelliteStatsWidget: React.FC<SatelliteStatsProps> = ({
           </button>
         </div>
 
+        {/* Legend Indicator Bar (3 Range) */}
         {showSnpp && <StatRow title="VIIRS S-NPP (375m)" data={snpp} withTitles={!showNoaa20} />}
         {showNoaa20 && <StatRow title="VIIRS NOAA-20 (375m)" data={noaa20} withTitles={!showSnpp} />}
 
-        {showAll && (
-          <div className="mt-1 flex items-center justify-between border-t border-slate-200/90 pt-1.5 text-slate-700">
-            <span className="text-[0.72rem] font-bold">Total Hotspot:</span>
-            <span className="rounded bg-emerald-100/80 px-2 py-0.5 font-mono text-[0.85rem] font-extrabold text-emerald-900 border border-emerald-200/60">
-              {grandTotal} Titik
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

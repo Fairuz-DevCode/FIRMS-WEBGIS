@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
-import { ChevronUp, ChevronDown, Info } from 'lucide-react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { ClimateType } from './ClimateLayer';
 import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES, ClimateLegendCategory } from '../../../map/constants/climate.constants';
 
 interface ClimateLegendProps {
   type: ClimateType;
-  opacity: number;
-  onOpacityChange: (opacity: number) => void;
+  opacity?: number;
+  onOpacityChange?: (opacity: number) => void;
   onClose?: () => void;
 }
 
 export const ClimateLegend: React.FC<ClimateLegendProps> = ({
   type,
-  opacity,
-  onOpacityChange,
 }) => {
   // Default collapsed on mobile screens (< 768px) to prevent screen overcrowding
   const [isCollapsed, setIsCollapsed] = useState<boolean>(
@@ -23,27 +21,19 @@ export const ClimateLegend: React.FC<ClimateLegendProps> = ({
   let title = '';
   let unit = '';
   let scales: ClimateLegendCategory[] = [];
-  let accentColorClass = 'text-sky-600';
-  let accentRangeClass = 'accent-sky-600';
 
   if (type === 'rainfall') {
     title = '🌧️ Curah Hujan';
     unit = 'mm';
     scales = RAINFALL_SCALES;
-    accentColorClass = 'text-sky-600';
-    accentRangeClass = 'accent-sky-600';
   } else if (type === 'soil_moisture') {
     title = '💧 Kelembaban Tanah';
     unit = 'm³/m³';
     scales = SOIL_MOISTURE_SCALES;
-    accentColorClass = 'text-cyan-600';
-    accentRangeClass = 'accent-cyan-600';
   } else if (type === 'temperature') {
     title = '🌡️ Suhu Udara';
     unit = '°C';
     scales = TEMPERATURE_SCALES;
-    accentColorClass = 'text-orange-600';
-    accentRangeClass = 'accent-orange-600';
   }
 
   return (
@@ -65,39 +55,17 @@ export const ClimateLegend: React.FC<ClimateLegendProps> = ({
       </div>
 
       {!isCollapsed && (
-        <div className="space-y-2">
-          {/* Color Items Stack */}
-          <div className="space-y-1.5">
-            {scales.map((s, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-[11px]">
-                <span
-                  className="w-3.5 h-3.5 rounded shadow-sm border border-black/10 shrink-0"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span className="font-mono font-semibold text-slate-700 min-w-[70px]">{s.label}</span>
-                <span className="text-slate-500 font-medium truncate">({s.category})</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Opacity Slider matching LandCoverLegend */}
-          <div className="pt-2 border-t border-slate-200 space-y-1">
-            <div className="flex justify-between items-center text-[10px] text-slate-600">
-              <span className="flex items-center gap-1 font-medium">
-                <Info className={`w-3 h-3 ${accentColorClass}`} /> Transparansi:
-              </span>
-              <span className={`font-mono font-bold ${accentColorClass}`}>{Math.round(opacity * 100)}%</span>
+        <div className="space-y-1.5">
+          {scales.map((s, idx) => (
+            <div key={idx} className="flex items-center gap-2 text-[11px]">
+              <span
+                className="w-3.5 h-3.5 rounded shadow-sm border border-black/10 shrink-0"
+                style={{ backgroundColor: s.color }}
+              />
+              <span className="font-mono font-semibold text-slate-700 min-w-[70px]">{s.label}</span>
+              <span className="text-slate-500 font-medium truncate">({s.category})</span>
             </div>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.05"
-              value={opacity}
-              onChange={(e) => onOpacityChange(parseFloat(e.target.value))}
-              className={`w-full ${accentRangeClass} h-1.5 bg-slate-200 rounded-lg cursor-pointer`}
-            />
-          </div>
+          ))}
         </div>
       )}
     </div>

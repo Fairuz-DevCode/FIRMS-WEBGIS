@@ -45,6 +45,8 @@ def seed():
                 sql_candidates = [
                     "peatlands_init.sql",
                     "/app/peatlands_init.sql",
+                    "seed/peatlands_init.sql",
+                    "/app/seed/peatlands_init.sql",
                     "../peatlands_init.sql",
                     "data/peatlands_init.sql",
                     "/app/data/peatlands_init.sql"

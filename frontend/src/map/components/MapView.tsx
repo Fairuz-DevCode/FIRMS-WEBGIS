@@ -90,8 +90,8 @@ export const MapView: React.FC = () => {
   const [peatlandOnly, setPeatlandOnly] = useState<boolean>(false);
 
   // Bottom-right floating popovers state ('layers' | 'calendar' | null)
-  // Navbar Dropdown state ('layers' | 'regions' | 'calendar' | null)
-  const [activeDropdown, setActiveDropdown] = useState<'layers' | 'regions' | 'calendar' | null>(null);
+  // Navbar Dropdown state ('layers' | 'regions' | 'calendar' | 'sensor' | null)
+  const [activeDropdown, setActiveDropdown] = useState<'layers' | 'regions' | 'calendar' | 'sensor' | null>(null);
 
   // Selected Hotspot Analytics Sidebar state
   const [selectedHotspot, setSelectedHotspot] = useState<SelectedHotspotAnalytics | null>(null);
@@ -417,6 +417,8 @@ export const MapView: React.FC = () => {
           <MapContainer
             center={INDONESIA_CENTER}
             zoom={DEFAULT_ZOOM}
+            minZoom={3}
+            maxZoom={20}
             zoomControl={false}
             attributionControl={false}
             preferCanvas={true}
@@ -429,22 +431,28 @@ export const MapView: React.FC = () => {
             <TileLayer
               key={activeBasemap.id}
               url={activeBasemap.url}
+              subdomains={activeBasemap.subdomains || ['a', 'b', 'c', 'd']}
               attribution={activeBasemap.attribution}
+              maxNativeZoom={activeBasemap.maxNativeZoom || 18}
+              maxZoom={activeBasemap.maxZoom || 20}
             />
 
             {activeBasemap.overlayUrl && (
               <TileLayer
                 key={`${activeBasemap.id}-overlay`}
                 url={activeBasemap.overlayUrl}
+                subdomains={activeBasemap.subdomains || ['a', 'b', 'c', 'd']}
+                maxNativeZoom={activeBasemap.maxNativeZoom || 18}
+                maxZoom={activeBasemap.maxZoom || 20}
                 pane="overlayPane"
               />
             )}
 
             <PeatlandLayer visible={showPeatland} />
 
-            <ClimateLayer type="rainfall" visible={showRainfall} opacity={rainfallOpacity} />
-            <ClimateLayer type="soil_moisture" visible={showSoilMoisture} opacity={soilMoistureOpacity} />
-            <ClimateLayer type="temperature" visible={showTemperature} opacity={temperatureOpacity} />
+            <ClimateLayer type="rainfall" visible={showRainfall} opacity={rainfallOpacity} date={dateFilterMode === 'single' ? singleDate : undefined} />
+            <ClimateLayer type="soil_moisture" visible={showSoilMoisture} opacity={soilMoistureOpacity} date={dateFilterMode === 'single' ? singleDate : undefined} />
+            <ClimateLayer type="temperature" visible={showTemperature} opacity={temperatureOpacity} date={dateFilterMode === 'single' ? singleDate : undefined} />
 
             <LandCoverLayer
               visible={showLandCover}

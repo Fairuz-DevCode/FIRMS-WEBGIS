@@ -6,7 +6,7 @@ Dokumentasi komprehensif arsitektur sistem, konsep spasial, metode analisis (Mul
 
 ## 📑 Daftar Isi
 1. [Arsitektur & Konsep Utama Proyek](#-arsitektur--konsep-utama-proyek)
-2. [Sinkronisasi Iklim Dinamis (Dynamic Climate Sync)](./DYNAMIC_CLIMATE_SYNC.md)
+2. [Sinkronisasi Iklim Dinamis (Dynamic Climate Sync)](./docs/DYNAMIC_CLIMATE_SYNC.md)
 3. [Metodologi Analisis Data Spasial](#-metodologi-analisis-data-spasial)
    - [A. Analisis Probabilitas Pemicu Kebakaran: Ulah Manusia vs Alami](#a-analisis-probabilitas-pemicu-kebakaran-ulah-manusia-vs-alami)
    - [B. Multi-Criteria Evaluation (MCE) Skor Risiko Karhutla](#b-multi-criteria-evaluation-mce-skor-risiko-karhutla)

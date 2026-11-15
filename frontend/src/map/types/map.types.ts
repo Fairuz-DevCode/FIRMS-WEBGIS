@@ -7,6 +7,8 @@ export interface BasemapConfig {
   overlayUrl?: string;
   subdomains?: string[];
   attribution: string;
+  maxNativeZoom?: number;
+  maxZoom?: number;
 }
 
 export interface IslandConfig {

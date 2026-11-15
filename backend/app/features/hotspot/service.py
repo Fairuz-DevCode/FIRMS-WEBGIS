@@ -296,13 +296,31 @@ async def get_environmental_context_at_point(
         import datetime
 
         target_date = None
+        target_date_str = None
         if date_str:
             try:
                 target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                target_date_str = date_str.strip()
             except ValueError:
                 target_date = None
+                target_date_str = None
 
         query = text("""
+            WITH target_time AS (
+                SELECT 
+                    COALESCE(
+                        (SELECT MAX(waktu) FROM temperature WHERE (:target_date_str IS NOT NULL AND waktu >= CAST(:target_date_str AS timestamp) AND waktu < CAST(:target_date_str AS timestamp) + interval '1 day')),
+                        (SELECT MAX(waktu) FROM temperature)
+                    ) as temp_time,
+                    COALESCE(
+                        (SELECT MAX(waktu) FROM soil_moisture_data WHERE (:target_date_str IS NOT NULL AND waktu >= CAST(:target_date_str AS timestamp) AND waktu < CAST(:target_date_str AS timestamp) + interval '1 day')),
+                        (SELECT MAX(waktu) FROM soil_moisture_data)
+                    ) as sm_time,
+                    COALESCE(
+                        (SELECT MAX(waktu) FROM rainfall_data WHERE (:target_date_str IS NOT NULL AND waktu >= CAST(:target_date_str AS timestamp) AND waktu < CAST(:target_date_str AS timestamp) + interval '1 day')),
+                        (SELECT MAX(waktu) FROM rainfall_data)
+                    ) as rain_time
+            )
             SELECT 
                 EXISTS(
                     SELECT 1 FROM peatlands 
@@ -310,31 +328,26 @@ async def get_environmental_context_at_point(
                     LIMIT 1
                 ) as is_peatland,
                 (
-                    SELECT name FROM indonesia_boundary
-                    WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326))
-                    LIMIT 1
-                ) as province,
-                (
                     SELECT suhu_celsius 
-                    FROM temperature 
-                    WHERE waktu = (SELECT MAX(waktu) FROM temperature)
-                      AND suhu_celsius IS NOT NULL AND suhu_celsius > 5
+                    FROM temperature, target_time 
+                    WHERE suhu_celsius IS NOT NULL AND suhu_celsius > 5
+                      AND waktu = target_time.temp_time
                     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) 
                     LIMIT 1
                 ) as temperature,
                 (
                     SELECT soil_moisture 
-                    FROM soil_moisture_data 
-                    WHERE waktu = (SELECT MAX(waktu) FROM soil_moisture_data)
-                      AND soil_moisture IS NOT NULL AND soil_moisture > 0.001
+                    FROM soil_moisture_data, target_time 
+                    WHERE soil_moisture IS NOT NULL AND soil_moisture > 0.001
+                      AND waktu = target_time.sm_time
                     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) 
                     LIMIT 1
                 ) as soil_moisture,
                 (
                     SELECT curah_hujan_mm 
-                    FROM rainfall_data 
-                    WHERE waktu = (SELECT MAX(waktu) FROM rainfall_data)
-                      AND curah_hujan_mm IS NOT NULL
+                    FROM rainfall_data, target_time 
+                    WHERE curah_hujan_mm IS NOT NULL
+                      AND waktu = target_time.rain_time
                     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) 
                     LIMIT 1
                 ) as rainfall,
@@ -352,7 +365,7 @@ async def get_environmental_context_at_point(
                       AND ST_Distance(geom, ST_SetSRID(ST_Point(:lng, :lat), 4326)) > 0.0001
                 ) as nearest_neighbor_km;
         """)
-        result = await db.execute(query.bindparams(lat=lat, lng=lng, target_date=target_date))
+        result = await db.execute(query.bindparams(lat=lat, lng=lng, target_date=target_date, target_date_str=target_date_str))
         row = result.first()
         if row:
             temp_val = round(float(row.temperature), 1) if row.temperature is not None else None
@@ -371,7 +384,7 @@ async def get_environmental_context_at_point(
                 "lat": lat,
                 "lng": lng,
                 "is_peatland": bool(row.is_peatland),
-                "province": row.province or "Indonesia",
+                "province": getattr(row, 'province', None) or "Indonesia",
                 "cluster": {
                     "nearby_count": cluster_count,
                     "nearest_neighbor_km": nearest_km,

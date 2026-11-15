@@ -22,12 +22,11 @@ export interface HotspotStyle {
 }
 
 /**
- * Palet Warna Titik Api & Klaster Berdasarkan Suhu Kecerahan (Tanpa Warna Hijau):
+ * Palet Warna Titik Api & Klaster Berdasarkan Suhu Kecerahan (3 Range - Gradien Api Tanpa Warna Hijau):
  * Karena titik api adalah potensi kebakaran/bencana, warna menggunakan tema api murni:
- * - >= 350 K (>= 77°C) : 🔴 Merah Pekat / Ekstrem (Darurat)
- * - 335 K - 349 K (62°C - 76°C) : 🟠 Oranye Pekat (Tinggi)
- * - 325 K - 334 K (52°C - 61°C) : 🟡 Amber / Oranye Cerah (Sedang)
- * - < 325 K (< 52°C)   : 🟡 Kuning Emas (Waspada / Awal)
+ * - >= 350 K (>= 77°C)        : 🔴 Merah Pekat (Ekstrem / Darurat)
+ * - 335 K - 349 K (62°C - 76°C): 🟠 Oranye Pekat (Tinggi)
+ * - < 335 K (< 62°C)          : 🟡 Kuning Amber (Sedang / Waspada)
  */
 export function getTemperatureColor(tempKelvin: number): {
   bg: string;
@@ -37,13 +36,11 @@ export function getTemperatureColor(tempKelvin: number): {
 } {
   const celsius = Math.round(tempKelvin - 273.15);
   if (tempKelvin >= 350) {
-    return { bg: '#dc2626', borderColor: '#fca5a5', level: 'high', celsius };   // Merah Ekstrem
+    return { bg: '#dc2626', borderColor: '#fca5a5', level: 'high', celsius };   // 🔴 Merah Ekstrem
   } else if (tempKelvin >= 335) {
-    return { bg: '#ea580c', borderColor: '#fdba74', level: 'high', celsius };   // Oranye Pekat
-  } else if (tempKelvin >= 325) {
-    return { bg: '#f59e0b', borderColor: '#fde68a', level: 'nominal', celsius }; // Amber
+    return { bg: '#ea580c', borderColor: '#fdba74', level: 'nominal', celsius }; // 🟠 Oranye Tinggi
   } else {
-    return { bg: '#eab308', borderColor: '#fef08a', level: 'low', celsius };     // Kuning Emas
+    return { bg: '#f59e0b', borderColor: '#fde68a', level: 'low', celsius };     // 🟡 Kuning Amber Sedang
   }
 }
 
@@ -109,21 +106,6 @@ function createPopupContent(
   const acq_date = row[HOTSPOT_COL.ACQ_DATE];
   const acq_time = row[HOTSPOT_COL.ACQ_TIME];
 
-  const conf = String(confidence || '').toLowerCase();
-  let badgeBg = '#dcfce7';
-  let badgeColor = '#15803d';
-  let badgeBorder = '#86efac';
-
-  if (conf === 'high' || conf === 'h' || Number(conf) >= 80) {
-    badgeBg = '#fee2e2';
-    badgeColor = '#b91c1c';
-    badgeBorder = '#fca5a5';
-  } else if (conf === 'nominal' || conf === 'n' || (Number(conf) >= 30 && Number(conf) < 80)) {
-    badgeBg = '#fef9c3';
-    badgeColor = '#a16207';
-    badgeBorder = '#fde047';
-  }
-
   // Peatland status badge
   const isPeat = context?.isPeatland === true;
   const peatLabel = isPeat ? 'Di Dalam Gambut' : 'Di Luar Gambut';
@@ -131,11 +113,8 @@ function createPopupContent(
   return `
     <div class="hotspot-popup-container" style="font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; color: #475569;">
       <!-- Header -->
-      <div class="hotspot-popup-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 6px;">
+      <div class="hotspot-popup-header" style="border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 6px;">
         <span class="hotspot-popup-title" style="font-weight: 700; color: #0f172a; font-size: 12.5px;">Informasi Titik Api</span>
-        <span class="hotspot-popup-badge" style="font-weight: 700; font-size: 9.5px; text-transform: uppercase; padding: 1.5px 6px; border-radius: 5px; border: 1px solid ${badgeBorder}; background: ${badgeBg}; color: ${badgeColor};">
-          ${confidence || 'N/A'}
-        </span>
       </div>
 
       <!-- Detail Parameter -->
@@ -204,11 +183,10 @@ function createPopupContent(
 }
 
 /**
- * Membuat badge cluster dengan warna berdasarkan RATA-RATA SUHU KECERAHAN titik di dalam cluster.
- * - Rata-rata Suhu Ekstrem (>= 355 K / >= 82°C): Merah (#dc2626)
- * - Rata-rata Suhu Tinggi (340 K - 354 K / 67°C - 81°C): Oranye (#ea580c)
- * - Rata-rata Suhu Sedang (325 K - 339 K / 52°C - 66°C): Kuning (#eab308)
- * - Rata-rata Suhu Rendah (< 325 K / < 52°C): Hijau (#16a34a)
+ * Membuat badge cluster dengan warna berdasarkan RATA-RATA SUHU KECERAHAN titik di dalam cluster (3 Range):
+ * - Rata-rata Suhu Ekstrem (>= 350 K / >= 77°C): Merah (#dc2626)
+ * - Rata-rata Suhu Tinggi (335 K - 349 K / 62°C - 76°C): Oranye (#ea580c)
+ * - Rata-rata Suhu Sedang (< 335 K / < 62°C): Amber (#f59e0b)
  */
 function createClusterIcon(count: number, avgBrightness: number = 330): L.DivIcon {
   const { bg, borderColor, celsius } = getTemperatureColor(avgBrightness);
@@ -255,7 +233,45 @@ function createClusterIcon(count: number, avgBrightness: number = 330): L.DivIco
   });
 }
 
+/**
+ * Icon Api (Fire Flame) DivIcon untuk Titik Api Individual.
+ * Warna SVG disesuaikan dengan suhu kecerahan (Kelvin/Celsius):
+ * - >= 350 K (>= 77°C)        : 🔴 Merah Pekat (Ekstrem)
+ * - 335 K - 349 K (62°C - 76°C): 🟠 Oranye Pekat (Tinggi)
+ * - < 335 K (< 62°C)          : 🟡 Kuning Amber (Sedang)
+ */
+function createHotspotFireIcon(row: HotspotMatrixRow): L.DivIcon {
+  const brightness = row[HOTSPOT_COL.BRIGHTNESS] || 325;
+  const { bg } = getTemperatureColor(brightness);
+  const celsius = Math.round(brightness - 273.15);
+
+  return L.divIcon({
+    html: `
+      <div class="hotspot-fire-marker" style="
+        width: 24px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.65));
+        cursor: pointer;
+        transform: translate3d(0, 0, 0);
+      "
+      title="Titik Api: ${brightness.toFixed(1)} K (${celsius}°C)">
+        <svg width="22" height="24" viewBox="0 0 24 24" fill="${bg}" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+        </svg>
+      </div>
+    `,
+    className: 'hotspot-fire-div-icon',
+    iconSize: L.point(24, 26, true),
+    iconAnchor: L.point(12, 22),
+    popupAnchor: L.point(0, -20)
+  });
+}
+
 interface HotspotFeatureProperties {
+  id?: number;
   lat: number;
   lng: number;
   brightness: number | null;
@@ -315,9 +331,9 @@ function HeatmapOverlay({ hotspots }: { hotspots: HotspotMatrixRow[] }) {
           blur: 15,
           maxZoom: 10,
           gradient: {
-            0.3: '#22c55e',  // Green (Low)
-            0.65: '#eab308', // Yellow (Medium)
-            1.0: '#dc2626'   // Red (High)
+            0.3: '#f59e0b',  // Amber (Sedang < 62°C)
+            0.65: '#ea580c', // Oranye (Tinggi 62 - 76°C)
+            1.0: '#dc2626'   // Merah (Ekstrem ≥ 77°C)
           }
         });
         heatLayer.addTo(map);
@@ -381,14 +397,14 @@ export default function HotspotLayer({
 
   const activeHotspots = features !== undefined ? features : fetchedHotspots;
 
-  // 1. Build Supercluster with balanced regional radius (95px)
-  // Prevents hundreds of micro-clusters and combines them cleanly
+  // 1. Build Supercluster with balanced regional radius (40px) and maxZoom 13
+  // Tetap mengelompokkan titik api yang berdekatan ke dalam klaster, dan memecah menjadi ikon api saat berjarak/diperbesar
   const superclusterIndex = useMemo(() => {
     if (!activeHotspots || activeHotspots.length === 0) return null;
 
     const index = new Supercluster<HotspotFeatureProperties, HotspotClusterProperties>({
-      radius: 95,     // Regional radius to ensure 20-40 clean clusters across Indonesia
-      maxZoom: 16,    // Stop clustering after zoom 16
+      radius: 40,     // Titik yang berdekatan (< 40px) tetap dikelompokkan ke dalam klaster
+      maxZoom: 13,    // Tetap klaster hingga zoom 13. Pada zoom >= 14 atau jika berjarak, menjadi ikon api mandiri
       minPoints: 2,
       map: (props) => ({
         sumBrightness: Number(props.brightness) || 325
@@ -414,6 +430,7 @@ export default function HotspotLayer({
           coordinates: [lng, lat]
         },
         properties: {
+          id: i,
           lat,
           lng,
           brightness: row[HOTSPOT_COL.BRIGHTNESS],
@@ -472,7 +489,7 @@ export default function HotspotLayer({
 
         const key = isCluster && clusterProps
           ? `c_${clusterProps.cluster_id}`
-          : `p_${leafProps?.lat}_${leafProps?.lng}`;
+          : `p_${leafProps?.id ?? `${leafProps?.lat}_${leafProps?.lng}`}`;
 
         currentKeys.add(key);
 
@@ -493,9 +510,33 @@ export default function HotspotLayer({
             icon,
             pane: hotspotPaneName
           });
-          clusterMarker.on('click', () => {
-            const nextZoom = superclusterIndex.getClusterExpansionZoom(clusterId);
-            map.flyTo([lat, lng], Math.min(nextZoom, 17), { duration: 0.5 });
+          clusterMarker.on('click', (e: L.LeafletMouseEvent) => {
+            if (e?.originalEvent) {
+              L.DomEvent.stopPropagation(e);
+            }
+            try {
+              const leaves = superclusterIndex.getLeaves(clusterId, Infinity);
+              if (leaves && leaves.length > 0) {
+                const coords = leaves.map(l => [l.geometry.coordinates[1], l.geometry.coordinates[0]] as [number, number]);
+                const bounds = L.latLngBounds(coords);
+                
+                // Jika semua titik berada di koordinat yang sama persis, zoom langsung ke level >= 11 agar uncluster
+                if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+                  map.setView([lat, lng], Math.min(Math.max(map.getZoom() + 3, 11), 17));
+                } else {
+                  // Langsung zoom pas ke sebaran titik klaster dalam 1x klik (min zoom 11 untuk buka klaster)
+                  map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+                }
+                return;
+              }
+            } catch (err) {
+              console.warn('[HotspotLayer] fitBounds fallback:', err);
+            }
+
+            // Fallback: ekspansi zoom langsung minimal level 11
+            const expansionZoom = superclusterIndex.getClusterExpansionZoom(clusterId);
+            const targetZoom = Math.max(map.getZoom() + 2, expansionZoom, 11);
+            map.flyTo([lat, lng], Math.min(targetZoom, 17), { duration: 0.35 });
           });
 
           layerGroup.addLayer(clusterMarker);
@@ -518,14 +559,11 @@ export default function HotspotLayer({
             isPeatland: isPeat
           };
 
-          const circleMarker = L.circleMarker([lat, lng], {
-            radius: style.radius,
-            color: style.color,
-            fillColor: style.fillColor,
-            fillOpacity: 0.88,
-            weight: 1.5,
-            pane: hotspotPaneName,
-            renderer: canvasRenderer
+          const fireIcon = createHotspotFireIcon(leafProps.rawRow);
+
+          const fireMarker = L.marker([lat, lng], {
+            icon: fireIcon,
+            pane: hotspotPaneName
           });
 
           const satLabel = sensor === 'ALL'
@@ -534,13 +572,13 @@ export default function HotspotLayer({
               ? 'VIIRS NOAA-20 (375m)'
               : 'VIIRS S-NPP (375m)';
 
-          circleMarker.bindPopup(() => createPopupContent(leafProps.rawRow, satLabel, baseContext), {
+          fireMarker.bindPopup(() => createPopupContent(leafProps.rawRow, satLabel, baseContext), {
             maxWidth: 280,
             className: 'hotspot-leaflet-popup'
           });
 
           // Dynamic asynchronous fetch when clicked: open sidebar & query environmental & land cover context
-          circleMarker.on('click', async () => {
+          fireMarker.on('click', async () => {
             if (onSelectHotspot) {
               onSelectHotspot({
                 row: leafProps.rawRow,
@@ -564,7 +602,7 @@ export default function HotspotLayer({
               const pointSoilMoisture = climateData?.soil_moisture ? { value: climateData.soil_moisture.value, category: climateData.soil_moisture.category } : undefined;
               const pointTemperature = climateData?.temperature ? { value: climateData.temperature.value, category: climateData.temperature.category } : undefined;
 
-              // Immediately update popup & sidebar so the user doesn't wait for external Esri
+              // Immediately update popup & sidebar with real DB climate values
               let currentContext: ActiveLayersContext = {
                 ...baseContext,
                 isPeatland: isPointPeat,
@@ -574,7 +612,16 @@ export default function HotspotLayer({
                 temperature: pointTemperature,
               };
 
-              circleMarker.setPopupContent(createPopupContent(leafProps.rawRow, sensor, currentContext));
+              const updatePopupHtml = (ctx: ActiveLayersContext) => {
+                const html = createPopupContent(leafProps.rawRow, satLabel, ctx);
+                fireMarker.setPopupContent(html);
+                const popup = fireMarker.getPopup();
+                if (popup && fireMarker.isPopupOpen()) {
+                  popup.setContent(html);
+                }
+              };
+
+              updatePopupHtml(currentContext);
 
               if (onSelectHotspot) {
                 onSelectHotspot({
@@ -614,7 +661,7 @@ export default function HotspotLayer({
                         ...currentContext,
                         landCoverClass: detectedLandCover
                       };
-                      circleMarker.setPopupContent(createPopupContent(leafProps.rawRow, sensor, currentContext));
+                      updatePopupHtml(currentContext);
                       if (onSelectHotspot) {
                         onSelectHotspot({
                           row: leafProps.rawRow,
@@ -648,8 +695,8 @@ export default function HotspotLayer({
             }
           });
 
-          layerGroup.addLayer(circleMarker);
-          renderedMarkers.set(key, circleMarker);
+          layerGroup.addLayer(fireMarker);
+          renderedMarkers.set(key, fireMarker);
         }
       }
 

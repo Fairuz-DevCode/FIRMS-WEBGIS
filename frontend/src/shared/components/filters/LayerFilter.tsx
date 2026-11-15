@@ -299,25 +299,24 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
           <button
             type="button"
             onClick={onToggle}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all select-none shadow-xs ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all select-none cursor-pointer ${
               isOpen
-                ? 'border-white bg-white text-slate-900 shadow-md'
-                : 'border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20'
+                ? 'bg-white/20 text-white shadow-xs'
+                : 'text-white/90 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Layers className={`h-3.5 w-3.5 ${isOpen ? 'text-emerald-700' : 'text-emerald-300'}`} />
+            <Layers className="h-4 w-4 md:h-4.5 md:w-4.5 text-emerald-300 shrink-0" />
             <span>Layer</span>
             <span className="text-[10px] bg-emerald-500/30 text-emerald-100 px-1.5 py-0.2 rounded-full font-bold">
               {activeLayersCount}
             </span>
-            <ChevronDown className="h-3 w-3 opacity-75" />
+            <ChevronDown className="h-3.5 w-3.5 opacity-75" />
           </button>
 
           {isOpen && (
-            <div className="absolute left-0 top-full mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 shadow-xl z-[1500] animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 top-full mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3.5 text-xs text-slate-800 shadow-xl z-[1500] animate-in fade-in zoom-in-95 duration-100">
               <div className="font-bold text-slate-900 pb-2 border-b border-slate-100 mb-2 flex items-center justify-between">
                 <span>Pilihan Layer & Parameter</span>
-                <span className="text-[10px] text-slate-400 font-normal">Klik (i) utk info</span>
               </div>
 
               <div className="space-y-1">

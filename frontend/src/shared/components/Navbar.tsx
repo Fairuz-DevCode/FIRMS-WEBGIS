@@ -19,8 +19,8 @@ export interface NavbarProps {
   onSensorChange?: (sensor: SensorType) => void;
 
   // Dropdown States
-  activeDropdown: 'layers' | 'regions' | 'calendar' | null;
-  onToggleDropdown: (dropdown: 'layers' | 'regions' | 'calendar') => void;
+  activeDropdown: 'layers' | 'regions' | 'calendar' | 'sensor' | null;
+  onToggleDropdown: (dropdown: 'layers' | 'regions' | 'calendar' | 'sensor') => void;
   onCloseDropdown: () => void;
 
   // Layer Toggles
@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
   }, [mobileMenuOpen]);
 
   return (
-    <header className="z-[2000] flex h-10 md:h-12 lg:h-16 shrink-0 select-none items-center justify-between border-b border-white/15 bg-gradient-to-r from-prims-900 via-prims-700 to-prims-800 px-3 sm:px-5 text-white shadow-[0_4px_20px_rgba(0,0,0,0.25)]">
+    <header className="z-[2000] flex h-14 md:h-16 shrink-0 select-none items-center justify-between border-b border-white/15 bg-gradient-to-r from-prims-900 via-prims-700 to-prims-800 px-4 sm:px-6 text-white shadow-[0_4px_20px_rgba(0,0,0,0.25)]">
       {/* 1. Sisi Kiri: Logo PRIMS & Judul */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
         </div>
 
         {/* Tombol Sejajar di Layar Desktop (>= lg) */}
-        <div className="hidden lg:flex items-center gap-2">
+        <div className="hidden lg:flex items-center gap-2.5">
           <BasemapFilter
             basemap={props.basemap}
             onBasemapToggle={props.onBasemapToggle}
@@ -146,17 +146,51 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
 
           {props.sensor && props.onSensorChange && (
             <div className="relative">
-              <select
-                value={props.sensor}
-                onChange={(e) => props.onSensorChange?.(e.target.value as SensorType)}
-                className="h-8 rounded-lg border border-white/20 bg-white/10 text-white px-2.5 pr-7 text-xs font-semibold hover:border-white/40 hover:bg-white/20 transition-all cursor-pointer appearance-none shadow-xs focus:outline-none"
-                title="Pilih Sensor Satelit NASA FIRMS"
+              <button
+                type="button"
+                onClick={() => props.onToggleDropdown('sensor')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all select-none cursor-pointer ${
+                  props.activeDropdown === 'sensor'
+                    ? 'bg-white/20 text-white shadow-xs'
+                    : 'text-white/90 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <option value="ALL" className="bg-slate-800 text-white">🛰️ Semua Satelit (Default)</option>
-                <option value="VIIRS_SNPP_NRT" className="bg-slate-800 text-white">🛰️ VIIRS S-NPP (375m)</option>
-                <option value="VIIRS_NOAA20_NRT" className="bg-slate-800 text-white">🛰️ VIIRS NOAA-20 (375m)</option>
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/70 pointer-events-none" />
+                <Radio className="h-4 w-4 md:h-4.5 md:w-4.5 text-emerald-300 shrink-0" />
+                <span className="truncate max-w-[130px]">
+                  {props.sensor === 'VIIRS_SNPP_NRT'
+                    ? 'VIIRS S-NPP'
+                    : props.sensor === 'VIIRS_NOAA20_NRT'
+                    ? 'VIIRS NOAA-20'
+                    : 'Satelit'}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-75" />
+              </button>
+
+              {props.activeDropdown === 'sensor' && (
+                <div className="absolute left-0 top-full mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3.5 text-xs text-slate-800 shadow-xl z-[1500] animate-in fade-in zoom-in-95 duration-100 space-y-3">
+                  <div className="font-bold text-slate-900 pb-1.5 border-b border-slate-100 flex items-center justify-between">
+                    <span>Pilih Sensor Satelit</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Sensor:</label>
+                    <div className="relative">
+                      <select
+                        value={props.sensor}
+                        onChange={(e) => {
+                          props.onSensorChange?.(e.target.value as SensorType);
+                        }}
+                        className="w-full h-8 rounded-lg border border-slate-200 bg-slate-50 px-2.5 pr-7 text-xs font-semibold text-slate-800 shadow-2xs focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer"
+                      >
+                        <option value="ALL">Semua Satelit</option>
+                        <option value="VIIRS_SNPP_NRT">VIIRS S-NPP</option>
+                        <option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20</option>
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -263,9 +297,9 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                         onChange={(e) => props.onSensorChange?.(e.target.value as SensorType)}
                         className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 pr-8 text-xs font-semibold text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer"
                       >
-                        <option value="ALL">🛰️ Semua Satelit (Default)</option>
-                        <option value="VIIRS_SNPP_NRT">🛰️ VIIRS S-NPP (375m)</option>
-                        <option value="VIIRS_NOAA20_NRT">🛰️ VIIRS NOAA-20 (375m)</option>
+                        <option value="ALL">Semua Satelit</option>
+                        <option value="VIIRS_SNPP_NRT">VIIRS S-NPP</option>
+                        <option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20</option>
                       </select>
                       <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                     </div>

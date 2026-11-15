@@ -9,6 +9,7 @@ interface ClimateLayerProps {
   type: ClimateType;
   visible: boolean;
   opacity?: number;
+  date?: string;
 }
 
 // Module-level cache for Indonesia boundary GeoJSON to prevent redundant network fetches
@@ -116,6 +117,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
   type,
   visible,
   opacity = 0.75,
+  date,
 }) => {
   const map = useMap();
   const [data, setData] = useState<number[][]>([]);
@@ -135,9 +137,13 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     if (!visible) return;
 
     let isMounted = true;
-    const endpoint = type === 'rainfall' 
+    let endpoint = type === 'rainfall' 
       ? '/api/rainfall?limit=20000' 
       : (type === 'soil_moisture' ? '/api/soil-moisture?limit=20000' : '/api/temperature?limit=20000');
+
+    if (date) {
+      endpoint += `&date=${encodeURIComponent(date)}`;
+    }
 
     const backendUrl = getApiBaseUrl();
 
@@ -153,7 +159,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
       });
 
     return () => { isMounted = false; };
-  }, [type, visible]);
+  }, [type, visible, date]);
 
   useEffect(() => {
     if (!map) return;

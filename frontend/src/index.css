@@ -34,6 +34,22 @@
 }
 
 /* Popup Hotspot Custom Styling & Mobile Optimization */
+.hotspot-fire-div-icon,
+.hotspot-cluster-badge {
+  background: transparent !important;
+  border: none !important;
+}
+
+.hotspot-fire-marker {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+.hotspot-fire-marker:hover {
+  transform: scale(1.25) translateY(-3px);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.8));
+}
+
 .hotspot-leaflet-popup .leaflet-popup-content-wrapper {
   border-radius: 10px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1);

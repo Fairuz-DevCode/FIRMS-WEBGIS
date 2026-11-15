@@ -11,12 +11,13 @@ router = APIRouter(prefix="/api/soil-moisture", tags=["Soil Moisture (Kelembaban
 @router.get("/")
 async def get_soil_moisture_data(
     limit: int = Query(20000, ge=1, le=25000, description="Max grid sample points to return"),
+    date: Optional[str] = Query(None, description="Tanggal YYYY-MM-DD (opsional, default: tanggal terbaru)"),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get ERA5 / Dynamic Soil Moisture dataset grid points directly from PostGIS database.
     """
-    return await SoilMoistureService.get_soil_moisture_grid_from_db(db=db, limit=limit)
+    return await SoilMoistureService.get_soil_moisture_grid_from_db(db=db, limit=limit, date_str=date)
 
 @router.get("/sample")
 async def sample_soil_moisture(
