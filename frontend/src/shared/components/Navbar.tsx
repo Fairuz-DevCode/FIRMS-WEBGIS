@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Menu, X, Radio, ChevronDown } from 'lucide-react';
 import { BasemapType } from '../../map/constants/basemap.constants';
-import { LandCoverProvider } from '../../modules/land_cover';
 import { SensorType } from '../../modules/hotspot/types/hotspot.types';
 import { BasemapFilter } from './filters/BasemapFilter';
 import { LayerFilter, LayerInfoType } from './filters/LayerFilter';
@@ -30,12 +29,6 @@ export interface NavbarProps {
   onTogglePeatland: (show: boolean) => void;
   peatlandOnly: boolean;
   onTogglePeatlandOnly: (peatlandOnly: boolean) => void;
-  showLandCover: boolean;
-  onToggleLandCover: (show: boolean) => void;
-  landCoverProvider: LandCoverProvider;
-  onLandCoverProviderChange: (provider: LandCoverProvider) => void;
-  onOpenGeoTIFFModal: () => void;
-  localGeoTIFFFileName?: string | null;
   showRainfall: boolean;
   onToggleRainfall: (show: boolean) => void;
   showSoilMoisture: boolean;
@@ -44,8 +37,6 @@ export interface NavbarProps {
   onToggleTemperature: (show: boolean) => void;
 
   // Layer Opacities
-  landCoverOpacity?: number;
-  onLandCoverOpacityChange?: (val: number) => void;
   rainfallOpacity?: number;
   onRainfallOpacityChange?: (val: number) => void;
   soilMoistureOpacity?: number;
@@ -201,16 +192,12 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
             onTogglePeatland={props.onTogglePeatland}
             peatlandOnly={props.peatlandOnly}
             onTogglePeatlandOnly={props.onTogglePeatlandOnly}
-            showLandCover={props.showLandCover}
-            onToggleLandCover={props.onToggleLandCover}
             showRainfall={props.showRainfall}
             onToggleRainfall={props.onToggleRainfall}
             showSoilMoisture={props.showSoilMoisture}
             onToggleSoilMoisture={props.onToggleSoilMoisture}
             showTemperature={props.showTemperature}
             onToggleTemperature={props.onToggleTemperature}
-            landCoverOpacity={props.landCoverOpacity}
-            onLandCoverOpacityChange={props.onLandCoverOpacityChange}
             rainfallOpacity={props.rainfallOpacity}
             onRainfallOpacityChange={props.onRainfallOpacityChange}
             soilMoistureOpacity={props.soilMoistureOpacity}
@@ -334,16 +321,12 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                   onTogglePeatland={props.onTogglePeatland}
                   peatlandOnly={props.peatlandOnly}
                   onTogglePeatlandOnly={props.onTogglePeatlandOnly}
-                  showLandCover={props.showLandCover}
-                  onToggleLandCover={props.onToggleLandCover}
                   showRainfall={props.showRainfall}
                   onToggleRainfall={props.onToggleRainfall}
                   showSoilMoisture={props.showSoilMoisture}
                   onToggleSoilMoisture={props.onToggleSoilMoisture}
                   showTemperature={props.showTemperature}
                   onToggleTemperature={props.onToggleTemperature}
-                  landCoverOpacity={props.landCoverOpacity}
-                  onLandCoverOpacityChange={props.onLandCoverOpacityChange}
                   rainfallOpacity={props.rainfallOpacity}
                   onRainfallOpacityChange={props.onRainfallOpacityChange}
                   soilMoistureOpacity={props.soilMoistureOpacity}

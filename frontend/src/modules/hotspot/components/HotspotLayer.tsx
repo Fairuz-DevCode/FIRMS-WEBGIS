@@ -79,7 +79,7 @@ import { ESRI_LAND_COVER_CLASSES } from '../../land_cover/constants/landCover.co
 export interface ActiveLayersContext {
   showPeatland: boolean;
   isPeatland?: boolean;
-  showLandCover: boolean;
+  showLandCover?: boolean;
   landCoverClass?: string;
   showRainfall: boolean;
   rainfall?: { value: number; category: string };

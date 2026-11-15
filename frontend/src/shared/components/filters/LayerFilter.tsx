@@ -4,14 +4,12 @@ import {
   ChevronDown, 
   Flame, 
   Trees, 
-  Map as MapIcon, 
   CloudRain, 
   Droplets, 
   Thermometer, 
   Info,
   X
 } from 'lucide-react';
-import { ESRI_LAND_COVER_CLASSES } from '../../../modules/land_cover/constants/landCover.constants';
 import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES } from '../../../map/constants/climate.constants';
 import { BasemapType } from '../../../map/constants/basemap.constants';
 
@@ -19,7 +17,6 @@ export type LayerInfoType =
   | 'hotspots' 
   | 'peatland_only' 
   | 'peatland' 
-  | 'land_cover' 
   | 'rainfall' 
   | 'soil_moisture' 
   | 'temperature' 
@@ -32,16 +29,12 @@ interface LayerFilterProps {
   onTogglePeatland: (show: boolean) => void;
   peatlandOnly: boolean;
   onTogglePeatlandOnly: (val: boolean) => void;
-  showLandCover: boolean;
-  onToggleLandCover: (show: boolean) => void;
   showRainfall: boolean;
   onToggleRainfall: (show: boolean) => void;
   showSoilMoisture: boolean;
   onToggleSoilMoisture: (show: boolean) => void;
   showTemperature: boolean;
   onToggleTemperature: (show: boolean) => void;
-  landCoverOpacity?: number;
-  onLandCoverOpacityChange?: (val: number) => void;
   rainfallOpacity?: number;
   onRainfallOpacityChange?: (val: number) => void;
   soilMoistureOpacity?: number;
@@ -64,16 +57,12 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
   onTogglePeatland,
   peatlandOnly,
   onTogglePeatlandOnly,
-  showLandCover,
-  onToggleLandCover,
   showRainfall,
   onToggleRainfall,
   showSoilMoisture,
   onToggleSoilMoisture,
   showTemperature,
   onToggleTemperature,
-  landCoverOpacity = 0.5,
-  onLandCoverOpacityChange,
   rainfallOpacity = 0.5,
   onRainfallOpacityChange,
   soilMoistureOpacity = 0.5,
@@ -98,7 +87,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
   const activeLayersCount = [
     showHotspots,
     showPeatland,
-    showLandCover,
     showRainfall,
     showSoilMoisture,
     showTemperature
@@ -131,13 +119,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
       onToggle: () => onTogglePeatland(!showPeatland),
     },
     {
-      id: 'land_cover' as LayerInfoType,
-      label: 'Tutupan Lahan (Sentinel-2)',
-      icon: <MapIcon className="h-4 w-4 text-green-600 shrink-0" />,
-      checked: showLandCover,
-      onToggle: () => onToggleLandCover(!showLandCover),
-    },
-    {
       id: 'rainfall' as LayerInfoType,
       label: 'Curah Hujan (Rainfall)',
       icon: <CloudRain className="h-4 w-4 text-sky-500 shrink-0" />,
@@ -162,25 +143,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
 
   const renderOpacitySlider = (itemId: LayerInfoType, checked: boolean) => {
     if (!checked) return null;
-    if (itemId === 'land_cover' && onLandCoverOpacityChange) {
-      return (
-        <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
-          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
-            <span>Transparansi Tutupan Lahan</span>
-            <span className="font-mono text-emerald-700 font-bold">{Math.round(landCoverOpacity * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            min="0.1"
-            max="1"
-            step="0.05"
-            value={landCoverOpacity}
-            onChange={(e) => onLandCoverOpacityChange(parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-          />
-        </div>
-      );
-    }
     if (itemId === 'rainfall' && onRainfallOpacityChange) {
       return (
         <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
@@ -374,7 +336,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                   {activeLayerInfo === 'hotspots' && 'Titik Api (NASA FIRMS)'}
                   {activeLayerInfo === 'peatland_only' && 'Filter: Lahan Gambut'}
                   {activeLayerInfo === 'peatland' && 'Lahan Gambut (Global Forest Watch)'}
-                  {activeLayerInfo === 'land_cover' && 'Tutupan Lahan (Sentinel-2)'}
                   {activeLayerInfo === 'rainfall' && 'Curah Hujan (Rainfall)'}
                   {activeLayerInfo === 'soil_moisture' && 'Kelembaban Tanah'}
                   {activeLayerInfo === 'temperature' && 'Suhu Udara (2m)'}
@@ -480,30 +441,6 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                     <span className="font-semibold text-slate-700">Sumber Data:</span>
                     <span className="font-medium text-slate-600 text-right">Global Forest Watch (GFW)</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Land Cover Info & Legend */}
-              {activeLayerInfo === 'land_cover' && (
-                <div className="space-y-2.5">
-                  <p className="leading-relaxed text-slate-600">
-                    Klasifikasi tutupan lahan 10 meter berbasis citra Sentinel-2 (Esri Sentinel-2 Land Cover Explorer / Living Atlas & Impact Observatory).
-                  </p>
-                  <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
-                    {Object.values(ESRI_LAND_COVER_CLASSES).map((item) => (
-                      <div key={item.value} className="flex items-center gap-2 text-[10px]">
-                        <span
-                          className="h-2.5 w-2.5 rounded shrink-0 border border-black/10"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="font-medium text-slate-700 truncate">{item.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
-                    <span className="font-semibold text-slate-700">Sumber Data:</span>
-                    <span className="font-medium text-slate-600 text-right">Esri Sentinel-2 Land Cover</span>
                   </div>
                 </div>
               )}

@@ -6,14 +6,6 @@ import { BASEMAPS, BasemapType } from '../constants/basemap.constants';
 import { ISLANDS, PROVINCES } from '../constants/regions.constants';
 import { ResearchModule } from '../constants/researchModules.constants';
 import { PeatlandLayer } from '../../modules/peatland';
-import {
-  LandCoverLayer,
-  LandCoverLegend,
-  GeoTIFFUploaderModal,
-  LandCoverProvider,
-  LAND_COVER_PROVIDERS,
-} from '../../modules/land_cover';
-import { GeoRaster } from 'georaster';
 import MapResizeHandler from '../../shared/components/MapResizeHandler';
 import { ClimateLayer, ClimateLegend } from '../../modules/climate';
 import { 
@@ -103,14 +95,6 @@ export const MapView: React.FC = () => {
   const [soilMoistureOpacity, setSoilMoistureOpacity] = useState<number>(0.5);
   const [showTemperature, setShowTemperature] = useState<boolean>(false);
   const [temperatureOpacity, setTemperatureOpacity] = useState<number>(0.5);
-
-  // Land Cover frontend processing states (Default 50% opacity)
-  const [showLandCover, setShowLandCover] = useState<boolean>(false);
-  const [landCoverProvider, setLandCoverProvider] = useState<LandCoverProvider>('esri_sentinel2');
-  const [landCoverOpacity, setLandCoverOpacity] = useState<number>(0.5);
-  const [localGeoRaster, setLocalGeoRaster] = useState<GeoRaster | null>(null);
-  const [localGeoTIFFFileName, setLocalGeoTIFFFileName] = useState<string | null>(null);
-  const [isGeoTIFFModalOpen, setIsGeoTIFFModalOpen] = useState<boolean>(false);
 
   // Region filtering states (Default prioritaskan pulau Sumatera, Kalimantan, Papua)
   const [selectedIsland, setSelectedIsland] = useState<string>('DEFAULT');
@@ -299,14 +283,6 @@ export const MapView: React.FC = () => {
     return list;
   }, [hotspotData, peatlandOnly, peatlandPolygons, selectedIsland, selectedProvince, sensor]);
 
-  // Auto enable land cover when module is PENGGUNAAN_LAHAN
-  useEffect(() => {
-    if (selectedModule === 'PENGGUNAAN_LAHAN') {
-      setShowLandCover(true);
-      setActiveDropdown('layers');
-    }
-  }, [selectedModule]);
-
   const handleBasemapToggle = () => {
     const sequence: BasemapType[] = ['satellite', 'light_gray'];
     const nextIdx = (sequence.indexOf(basemap) + 1) % sequence.length;
@@ -331,20 +307,12 @@ export const MapView: React.FC = () => {
         onTogglePeatland={setShowPeatland}
         peatlandOnly={peatlandOnly}
         onTogglePeatlandOnly={setPeatlandOnly}
-        showLandCover={showLandCover}
-        onToggleLandCover={setShowLandCover}
-        landCoverProvider={landCoverProvider}
-        onLandCoverProviderChange={setLandCoverProvider}
-        onOpenGeoTIFFModal={() => setIsGeoTIFFModalOpen(true)}
-        localGeoTIFFFileName={localGeoTIFFFileName}
         showRainfall={showRainfall}
         onToggleRainfall={setShowRainfall}
         showSoilMoisture={showSoilMoisture}
         onToggleSoilMoisture={setShowSoilMoisture}
         showTemperature={showTemperature}
         onToggleTemperature={setShowTemperature}
-        landCoverOpacity={landCoverOpacity}
-        onLandCoverOpacityChange={setLandCoverOpacity}
         rainfallOpacity={rainfallOpacity}
         onRainfallOpacityChange={setRainfallOpacity}
         soilMoistureOpacity={soilMoistureOpacity}
@@ -377,13 +345,6 @@ export const MapView: React.FC = () => {
             {/* Informasi Sensor NASA FIRMS */}
             <SatelliteStatsWidget hotspots={displayedHotspots} currentSensor={sensor} />
 
-            {showLandCover && (
-              <LandCoverLegend
-                opacity={landCoverOpacity}
-                onOpacityChange={setLandCoverOpacity}
-                activeProviderName={LAND_COVER_PROVIDERS[landCoverProvider].name}
-              />
-            )}
             {showRainfall && (
               <ClimateLegend
                 type="rainfall"
@@ -454,13 +415,6 @@ export const MapView: React.FC = () => {
             <ClimateLayer type="soil_moisture" visible={showSoilMoisture} opacity={soilMoistureOpacity} date={dateFilterMode === 'single' ? singleDate : undefined} />
             <ClimateLayer type="temperature" visible={showTemperature} opacity={temperatureOpacity} date={dateFilterMode === 'single' ? singleDate : undefined} />
 
-            <LandCoverLayer
-              visible={showLandCover}
-              provider={landCoverProvider}
-              opacity={landCoverOpacity}
-              localGeoRaster={localGeoRaster}
-            />
-
             {showHotspots && (
               <HotspotLayer
                 sensor={sensor}
@@ -475,7 +429,6 @@ export const MapView: React.FC = () => {
                 onSelectHotspot={setSelectedHotspot}
                 activeContext={{
                   showPeatland,
-                  showLandCover,
                   showRainfall,
                   showSoilMoisture,
                   showTemperature
@@ -485,19 +438,6 @@ export const MapView: React.FC = () => {
           </MapContainer>
         </div>
       </div>
-
-      {/* Modal for processing local .tif GeoTIFF client-side */}
-      <GeoTIFFUploaderModal
-        isOpen={isGeoTIFFModalOpen}
-        onClose={() => setIsGeoTIFFModalOpen(false)}
-        onGeoRasterLoaded={(georaster, fileName) => {
-          setLocalGeoRaster(georaster);
-          setLocalGeoTIFFFileName(fileName);
-          setLandCoverProvider('local_geotiff');
-          setShowLandCover(true);
-          setIsGeoTIFFModalOpen(false);
-        }}
-      />
     </div>
   );
 };
