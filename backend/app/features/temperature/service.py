@@ -7,7 +7,7 @@ from app.config.cache import cache
 # BAGIAN 2: Service utama data spasial suhu udara
 class TemperatureService:
     @classmethod
-    async def get_temperature_grid_from_db(cls, db: AsyncSession, limit: int = 3000, date_str: Optional[str] = None) -> Dict[str, Any]:
+    async def get_temperature_grid_from_db(cls, db: AsyncSession, limit: int = 20000, date_str: Optional[str] = None) -> Dict[str, Any]:
         """
         Ambil grid suhu udara dan ringkasan statistik dari PostGIS.
         """

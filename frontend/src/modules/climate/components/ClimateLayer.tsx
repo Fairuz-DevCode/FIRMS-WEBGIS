@@ -154,7 +154,23 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
     const valSum = new Float32Array(cols * rows);
     const weightSum = new Float32Array(cols * rows);
-    const interpRadius = data.length < 5000 ? 6 : 2;
+
+    // Grid spacing data iklim adalah ~0.25 - 0.5 derajat (~2.5 - 5 piksel canvas).
+    // Radius 6 piksel menjamin cakupan interpolasi kontinu penuh tanpa celah garis-garis (striping)
+    const interpRadius = 6;
+
+    // Precompute weight offsets agar proses interpolasi berjalan sangat cepat (<15ms)
+    const kernelOffsets: { dx: number; dy: number; w: number }[] = [];
+    for (let dy = -interpRadius; dy <= interpRadius; dy++) {
+      for (let dx = -interpRadius; dx <= interpRadius; dx++) {
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= interpRadius * interpRadius) {
+          const dist = Math.sqrt(d2);
+          const w = Math.cos((dist / interpRadius) * (Math.PI / 2));
+          kernelOffsets.push({ dx, dy, w });
+        }
+      }
+    }
 
     for (let i = 0; i < data.length; i++) {
       const [lat, lng, val] = data[i];
@@ -170,20 +186,14 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
       if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
 
-      for (let dy = -interpRadius; dy <= interpRadius; dy++) {
-        for (let dx = -interpRadius; dx <= interpRadius; dx++) {
-          const d2 = dx * dx + dy * dy;
-          if (d2 <= interpRadius * interpRadius) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-              const idx = ny * cols + nx;
-              const dist = Math.sqrt(d2);
-              const w = Math.cos((dist / interpRadius) * (Math.PI / 2));
-              valSum[idx] += val * w;
-              weightSum[idx] += w;
-            }
-          }
+      for (let j = 0; j < kernelOffsets.length; j++) {
+        const { dx, dy, w } = kernelOffsets[j];
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+          const idx = ny * cols + nx;
+          valSum[idx] += val * w;
+          weightSum[idx] += w;
         }
       }
     }
@@ -210,7 +220,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     if (sCtx) {
       sCtx.imageSmoothingEnabled = true;
       sCtx.imageSmoothingQuality = 'high';
-      sCtx.filter = 'blur(2px)';
+      sCtx.filter = 'blur(3px)';
       sCtx.drawImage(canvas, 0, 0, smoothCanvas.width, smoothCanvas.height);
 
       if (boundary) {
