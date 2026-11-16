@@ -10,8 +10,6 @@ import {
 } from '../constants/climate.constants';
 import { fetchClimateGrid, getBoundaryGeoJSON } from '../api/climate';
 
-export type { ClimateType };
-
 interface ClimateLayerProps {
   type: ClimateType;
   visible: boolean;
