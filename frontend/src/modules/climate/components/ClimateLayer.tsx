@@ -156,8 +156,9 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     const weightSum = new Float32Array(cols * rows);
 
     // Grid spacing data iklim adalah ~0.25 - 0.5 derajat (~2.5 - 5 piksel canvas).
-    // Radius 6 piksel menjamin cakupan interpolasi kontinu penuh tanpa celah garis-garis (striping)
-    const interpRadius = 6;
+    // Radius 10 piksel (~1.0 derajat) menjamin cakupan interpolasi mulus dan menutup celah (gap-filling)
+    // bahkan jika ada baris titik data satelit/cuaca yang hilang pada tanggal tertentu.
+    const interpRadius = 10;
 
     // Precompute weight offsets agar proses interpolasi berjalan sangat cepat (<15ms)
     const kernelOffsets: { dx: number; dy: number; w: number }[] = [];
