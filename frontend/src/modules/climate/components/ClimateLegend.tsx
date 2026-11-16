@@ -1,8 +1,10 @@
+// BAGIAN 1: Import library dan komponen UI
 import React, { useState } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import { ClimateType } from './ClimateLayer';
-import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES, ClimateLegendCategory } from '../../../map/constants/climate.constants';
+import { ClimateType, ClimateLegendCategory } from '../types/climate.types';
+import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES } from '../constants/climate.constants';
 
+// BAGIAN 2: Interface properti komponen legenda iklim
 interface ClimateLegendProps {
   type: ClimateType;
   opacity?: number;
@@ -10,10 +12,10 @@ interface ClimateLegendProps {
   onClose?: () => void;
 }
 
+// BAGIAN 3: Komponen visual legenda iklim (Curah Hujan, Kelembaban Tanah, Suhu Udara)
 export const ClimateLegend: React.FC<ClimateLegendProps> = ({
   type,
 }) => {
-  // Default collapsed on mobile screens (< 768px) to prevent screen overcrowding
   const [isCollapsed, setIsCollapsed] = useState<boolean>(
     () => typeof window !== 'undefined' && window.innerWidth < 768
   );
@@ -23,22 +25,21 @@ export const ClimateLegend: React.FC<ClimateLegendProps> = ({
   let scales: ClimateLegendCategory[] = [];
 
   if (type === 'rainfall') {
-    title = '🌧️ Curah Hujan';
+    title = 'Curah Hujan';
     unit = 'mm';
     scales = RAINFALL_SCALES;
   } else if (type === 'soil_moisture') {
-    title = '💧 Kelembaban Tanah';
+    title = 'Kelembaban Tanah';
     unit = 'm³/m³';
     scales = SOIL_MOISTURE_SCALES;
   } else if (type === 'temperature') {
-    title = '🌡️ Suhu Udara';
+    title = 'Suhu Udara';
     unit = '°C';
     scales = TEMPERATURE_SCALES;
   }
 
   return (
     <div className="climate-legend-card rounded-xl border border-slate-200/90 bg-white/95 p-3 text-xs text-slate-800 shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md min-w-[240px]">
-      {/* Title Bar with Collapse Button */}
       <div className="flex items-center justify-between gap-2 pb-1.5 mb-2 border-b border-slate-200">
         <div className="flex items-center gap-1.5 font-bold text-slate-900">
           <span>{title}</span>

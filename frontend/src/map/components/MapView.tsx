@@ -4,8 +4,7 @@ import 'leaflet/dist/leaflet.css';
 
 import { BASEMAPS, BasemapType } from '../constants/basemap.constants';
 import { ISLANDS, PROVINCES } from '../constants/regions.constants';
-import { ResearchModule } from '../constants/researchModules.constants';
-import { PeatlandLayer } from '../../modules/peatland';
+import { PeatlandLayer, fetchPeatlandGeoJSON } from '../../modules/peatland';
 import MapResizeHandler from '../../shared/components/MapResizeHandler';
 import { ClimateLayer, ClimateLegend } from '../../modules/climate';
 import { 
@@ -68,7 +67,6 @@ function MapPaneInitializer() {
 
 export const MapView: React.FC = () => {
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const [selectedModule, setSelectedModule] = useState<ResearchModule>('BATAS_WILAYAH');
   const [sensor, setSensor] = useState<SensorType>('ALL');
   const [dayRange, setDayRange] = useState<number>(1);
   const [dateFilterMode, setDateFilterMode] = useState<'range' | 'single' | 'days'>('single');
@@ -139,23 +137,17 @@ export const MapView: React.FC = () => {
   // Index Peatland features directly from Database API
   useEffect(() => {
     let isMounted = true;
-    const fetchPeatland = async () => {
-      try {
-        const backendUrl = getApiBaseUrl();
-        const res = await fetch(`${backendUrl}/api/peatland`);
-        if (res.ok) {
-          const geojson = await res.json();
-          if (isMounted) {
-            const prepared = preparePeatlandPolygons(geojson);
-            setPeatlandPolygons(prepared);
-          }
+    fetchPeatlandGeoJSON()
+      .then((geojson) => {
+        if (isMounted) {
+          const prepared = preparePeatlandPolygons(geojson);
+          setPeatlandPolygons(prepared);
         }
-      } catch (e) {
+      })
+      .catch((e) => {
         console.warn('[MapView] Spatial peatland indexing fetch warning:', e);
-      }
-    };
+      });
 
-    fetchPeatland();
     return () => {
       isMounted = false;
     };

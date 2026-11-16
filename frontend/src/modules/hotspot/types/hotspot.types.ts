@@ -4,21 +4,8 @@ export type SensorType =
   | 'VIIRS_NOAA20_NRT';
 
 /**
- * Standard column index mapping for Flat Array Matrix:
- * [lat, lng, brightness, frp, confidence, acq_date, acq_time]
- */
-export const HOTSPOT_COL = {
-  LAT: 0,
-  LNG: 1,
-  BRIGHTNESS: 2,
-  FRP: 3,
-  CONFIDENCE: 4,
-  ACQ_DATE: 5,
-  ACQ_TIME: 6,
-} as const;
-
-/**
  * Flat Array Matrix row representation for high performance streaming & rendering
+ * [lat, lng, brightness, frp, confidence, acq_date, acq_time]
  */
 export type HotspotMatrixRow = [
   number,        // 0: lat (Latitude)

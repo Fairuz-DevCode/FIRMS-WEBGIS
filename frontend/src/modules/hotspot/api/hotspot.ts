@@ -1,4 +1,10 @@
-import { SensorType, HotspotMatrixRow, HotspotApiResponse } from '../types/hotspot.types';
+// ==============================================================================
+// CLIENT API TITIK API (HOTSPOT API)
+// ==============================================================================
+// Memanggil endpoint backend /api/hotspots dan memparsing matriks titik api.
+// ==============================================================================
+
+import { SensorType, HotspotMatrixRow } from '../types/hotspot.types';
 import { getApiBaseUrl } from '../../../shared/utils/api';
 
 const getBackendBaseUrl = getApiBaseUrl;
@@ -22,10 +28,6 @@ export interface HotspotFetchResult {
   source: string;
 }
 
-/**
- * Fetches real active hotspot data from PostGIS database via backend API.
- * Supports both high-performance Flat Array Matrix and GeoJSON response format seamlessly.
- */
 export async function fetchHotspots({
   sensor,
   days,
@@ -37,6 +39,7 @@ export async function fetchHotspots({
   minFrp,
   limit = 20000,
 }: FetchHotspotsParams): Promise<HotspotFetchResult> {
+  // BAGIAN 1: Susun parameter query URL
   const params = new URLSearchParams();
   params.append('sensor', sensor);
 
@@ -62,6 +65,7 @@ export async function fetchHotspots({
     params.append('limit', limit.toString());
   }
 
+  // BAGIAN 2: Fetch HTTP ke backend API
   const baseUrl = getBackendBaseUrl();
   const url = `${baseUrl}/api/hotspots?${params.toString()}`;
 
@@ -72,18 +76,16 @@ export async function fetchHotspots({
   }
 
   const json: any = await res.json();
-
   if (json.status !== 'success') {
-    throw new Error(json.message || 'Gagal memuat data hotspot dari backend');
+    throw new Error(json.message || 'Gagal memuat data hotspot');
   }
 
+  // BAGIAN 3: Ekstraksi data matriks 2D
   let dataMatrix: HotspotMatrixRow[] = [];
 
-  // 1. Native Flat Array Matrix: [[lat, lng, brightness, frp, confidence, acq_date, acq_time], ...]
   if (Array.isArray(json.data)) {
     dataMatrix = json.data as HotspotMatrixRow[];
   } else if (json.data && typeof json.data === 'object' && Array.isArray(json.data.features)) {
-    // 2. Compatibility Fallback: If backend returns GeoJSON FeatureCollection
     dataMatrix = json.data.features.map((f: any) => {
       const p = f.properties || {};
       const coords = f.geometry?.coordinates || [0, 0];
@@ -98,7 +100,6 @@ export async function fetchHotspots({
       ] as HotspotMatrixRow;
     });
   } else if (Array.isArray(json.features)) {
-    // 3. Direct Feature array
     dataMatrix = json.features.map((f: any) => {
       const p = f.properties || {};
       const coords = f.geometry?.coordinates || [0, 0];
@@ -114,6 +115,7 @@ export async function fetchHotspots({
     });
   }
 
+  // BAGIAN 4: Kembalikan format hasil standar
   return {
     data: dataMatrix,
     columns: json.columns || ['lat', 'lng', 'brightness', 'frp', 'confidence', 'acq_date', 'acq_time'],

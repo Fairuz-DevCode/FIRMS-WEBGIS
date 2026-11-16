@@ -1,6 +1,8 @@
+// BAGIAN 1: Import library dan tipe data pendukung
 import { LandCoverClass, LandCoverProvider, LandCoverProviderConfig } from '../types/landCover.types';
 export type { LandCoverClass, LandCoverProvider, LandCoverProviderConfig };
 
+// BAGIAN 2: Kamus klasifikasi tutupan lahan ESRI Sentinel-2
 export const ESRI_LAND_COVER_CLASSES: Record<number, LandCoverClass> = {
   1: {
     value: 1,
@@ -58,6 +60,7 @@ export const ESRI_LAND_COVER_CLASSES: Record<number, LandCoverClass> = {
   },
 };
 
+// BAGIAN 3: Konfigurasi penyedia layanan tutupan lahan (WMS & Tile Service)
 export const LAND_COVER_PROVIDERS: Record<LandCoverProvider, LandCoverProviderConfig> = {
   esri_sentinel2: {
     id: 'esri_sentinel2',
@@ -76,12 +79,5 @@ export const LAND_COVER_PROVIDERS: Record<LandCoverProvider, LandCoverProviderCo
     wmsUrl: 'https://services.terrascope.be/wms/v2',
     layerName: 'WORLDCOVER_2021_MAP',
     attribution: 'ESA WorldCover / Terrascope',
-  },
-  local_geotiff: {
-    id: 'local_geotiff',
-    name: 'Unggah / Olah File GeoTIFF (.tif) Langsung di Browser',
-    description: 'Parsing array GeoTIFF rasters client-side tanpa kirim ke database PostGIS',
-    resolution: 'Dynamic',
-    attribution: 'Custom User GeoTIFF Client-Side Parser',
   },
 };

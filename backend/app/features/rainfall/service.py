@@ -1,14 +1,15 @@
+# BAGIAN 1: Import library dan modul pendukung
 from typing import Dict, Any, Optional, List
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.utils.cache import cache
+from app.config.cache import cache
 
+# BAGIAN 2: Service utama data spasial curah hujan
 class RainfallService:
     @classmethod
     async def get_rainfall_grid_from_db(cls, db: AsyncSession, limit: int = 20000, date_str: Optional[str] = None) -> Dict[str, Any]:
         """
-        Get rainfall grid and stats directly from PostGIS database.
-        If date_str provided, filters by that date or closest date.
+        Ambil grid curah hujan dan ringkasan statistik dari PostGIS.
         """
         cache_key = f"rainfall_grid_{limit}_{date_str or 'latest'}"
         cached = cache.get(cache_key)
@@ -80,10 +81,11 @@ class RainfallService:
 
         return {"status": "error", "data": []}
 
+    # BAGIAN 3: Pengambilan nilai terdekat pada koordinat spesifik (KNN PostGIS)
     @classmethod
     async def get_rainfall_at_point_from_db(cls, db: AsyncSession, lat: float, lon: float) -> Dict[str, Any]:
         """
-        Get nearest rainfall record at specified lat, lon using PostGIS KNN.
+        Ambil nilai curah hujan terdekat dengan PostGIS KNN operator (<->).
         """
         try:
             query = text("""

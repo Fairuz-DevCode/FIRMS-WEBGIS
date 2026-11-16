@@ -1,7 +1,9 @@
+# BAGIAN 1: Import library dan modul pendukung
 from sqlalchemy import Column, Integer, Float, String
 from geoalchemy2 import Geometry
-from app.core.database import Base
+from app.config.database import Base
 
+# BAGIAN 2: Model ORM PostGIS untuk polygon lahan gambut (peatlands)
 class Peatland(Base):
     __tablename__ = "peatlands"
 

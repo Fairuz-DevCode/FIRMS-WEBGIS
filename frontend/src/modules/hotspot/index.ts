@@ -7,3 +7,4 @@ export { useHotspots } from './hooks/useHotspots';
 export { HotspotAnalyticsSidebar } from './components/HotspotAnalyticsSidebar';
 export { SatelliteStatsWidget, getHotspotSatellite } from './components/SatelliteStatsWidget';
 export * from './types/hotspot.types';
+export * from './constants/hotspot.constants';

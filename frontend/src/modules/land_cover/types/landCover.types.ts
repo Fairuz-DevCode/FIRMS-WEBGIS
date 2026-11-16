@@ -1,3 +1,4 @@
+// BAGIAN 1: Definisi kelas atribut tutupan lahan (LULC)
 export interface LandCoverClass {
   value: number;
   label: string;
@@ -5,7 +6,8 @@ export interface LandCoverClass {
   description: string;
 }
 
-export type LandCoverProvider = 'esri_sentinel2' | 'esa_worldcover' | 'local_geotiff';
+// BAGIAN 2: Definisi penyedia layanan web service tutupan lahan
+export type LandCoverProvider = 'esri_sentinel2' | 'esa_worldcover';
 
 export interface LandCoverProviderConfig {
   id: LandCoverProvider;

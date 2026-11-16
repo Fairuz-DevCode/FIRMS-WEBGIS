@@ -7,7 +7,7 @@ This document provides complete instructions for configuring, running, and testi
 ## 1. How to Obtain a Free NASA FIRMS MAP_KEY
 
 1. Visit the official NASA FIRMS MAP_KEY registration page:  
-   👉 **[https://firms.modaps.eosdis.nasa.gov/api/map_key/](https://firms.modaps.eosdis.nasa.gov/api/map_key/)**
+    **[https://firms.modaps.eosdis.nasa.gov/api/map_key/](https://firms.modaps.eosdis.nasa.gov/api/map_key/)**
 2. Enter your valid email address and click **Submit**.
 3. NASA will instantly send a confirmation email containing your unique **32-character MAP_KEY** (e.g., `a1b2c3d4e5f67890123456789abcdef0`).
 4. Copy your key and add it to `backend/.env`:
@@ -140,8 +140,8 @@ curl "http://localhost:4000/api/hotspots?sensor=MODIS_NRT&days=5"
 3. **Indonesia Bounding Box Filtering**: Bounding box fixed to `MinLon: 95.0, MinLat: -11.0, MaxLon: 141.0, MaxLat: 6.0`.
 4. **15-Minute In-Memory Caching**: Implemented using `node-cache` (900 seconds TTL) to prevent NASA API rate limits.
 5. **Interactive Hotspot Marker Styling**:
-   - 🔴 **High Confidence / Bright (>355 K)**: Dark Red Marker
-   - 🟠 **Nominal Confidence (330 K - 355 K)**: Orange Marker
-   - 🟡 **Low Confidence (<330 K)**: Yellow Marker
+   -  **High Confidence / Bright (>355 K)**: Dark Red Marker
+   -  **Nominal Confidence (330 K - 355 K)**: Orange Marker
+   -  **Low Confidence (<330 K)**: Yellow Marker
 6. **Detailed Popup Inspector**: Displays Acquisition Date & Time, Satellite/Sensor, Brightness Temperature (K), Confidence Level (%), Fire Radiative Power (FRP in MW), and Lat/Long coordinates.
 7. **Phase 1 Peatland Integration**: Peatland Hydrological Units (Sumatra & Kalimantan) rendered alongside real-time fire points to assess peat fire risk!

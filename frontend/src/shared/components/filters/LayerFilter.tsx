@@ -10,7 +10,7 @@ import {
   Info,
   X
 } from 'lucide-react';
-import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES } from '../../../map/constants/climate.constants';
+import { RAINFALL_SCALES, SOIL_MOISTURE_SCALES, TEMPERATURE_SCALES } from '../../../modules/climate';
 import { BasemapType } from '../../../map/constants/basemap.constants';
 
 export type LayerInfoType = 
@@ -362,7 +362,7 @@ export const LayerFilter: React.FC<LayerFilterProps> = ({
                   <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 space-y-1">
                     <div className="font-semibold text-slate-800 text-[10px]">Tipe Peta Aktif:</div>
                     <div className="text-slate-700 font-medium">
-                      {basemap === 'satellite' ? '🛰️ Esri World Imagery (Citra Satelit)' : '🗺️ Esri Light Gray Canvas (Polos)'}
+                      {basemap === 'satellite' ? 'Esri World Imagery (Citra Satelit)' : 'Esri Light Gray Canvas (Polos)'}
                     </div>
                   </div>
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">

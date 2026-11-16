@@ -1,3 +1,4 @@
+# BAGIAN 1: Import library dan modul pendukung
 import os
 import glob
 from typing import Dict, Any, Optional, List
@@ -9,6 +10,7 @@ try:
 except ImportError:
     HAS_RASTERIO = False
 
+# BAGIAN 2: Kamus klasifikasi tutupan lahan (land cover classes)
 LAND_COVER_CLASSES = {
     1: "Tree Cover / Forest",
     2: "Shrubland",
@@ -23,11 +25,12 @@ LAND_COVER_CLASSES = {
     11: "Moss and Lichen"
 }
 
+# BAGIAN 3: Service pengelolaan dan sampling raster GeoTIFF
 class LandCoverService:
     @staticmethod
     def get_available_rasters() -> List[Dict[str, Any]]:
         """
-        List available GeoTIFF land cover raster tiles in the data directory.
+        Daftar file raster GeoTIFF tutupan lahan pada direktori data.
         """
         search_paths = [
             "/app/data/raw data/*.tif",
@@ -47,10 +50,11 @@ class LandCoverService:
                     })
         return files
 
+    # BAGIAN 4: Sampling nilai piksel GeoTIFF pada koordinat geografis
     @staticmethod
     def sample_land_cover(lat: float, lon: float, geotiff_path: Optional[str] = None) -> Dict[str, Any]:
         """
-        Samples land cover values at coordinate (lat, lon) using Rasterio & NumPy.
+        Sampling nilai tutupan lahan pada koordinat (lat, lon) menggunakan Rasterio.
         """
         if not geotiff_path:
             rasters = LandCoverService.get_available_rasters()
@@ -73,14 +77,13 @@ class LandCoverService:
                         "source": "rasterio"
                     }
             except Exception as e:
-                print(f"[LandCoverService Warning] Rasterio sampling fallback: {e}")
+                print(f"[LandCoverService Error] Rasterio: {e}")
 
-        # No GeoTIFF covers this point or raster file is unavailable
         return {
             "lat": lat,
             "lon": lon,
             "pixel_val": None,
-            "land_cover": "Data raster GeoTIFF lokal tidak tersedia untuk titik koordinat ini",
+            "land_cover": "Data raster GeoTIFF tidak tersedia untuk titik ini",
             "raster_file": None,
             "source": "none"
         }

@@ -1,105 +1,80 @@
-from typing import Optional
+# BAGIAN 1: Import library dan modul pendukung
+from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import get_db
-from app.features.hotspot.service import get_hotspots_from_db, get_hotspot_stats_from_db
-from app.features.hotspot.sync import sync_nasa_firms_data
-from app.features.hotspot.schemas import HotspotApiResponse, HotspotStatsResponse, HotspotSyncResponse
+from pydantic import BaseModel
 
+from app.config.database import get_db
+from app.features.hotspot.service import (
+    get_hotspots_from_db,
+    get_hotspot_stats_from_db,
+    get_environmental_context_at_point
+)
+
+# Inisialisasi router fitur titik api
 router = APIRouter(prefix="/api", tags=["Hotspots"])
 
-@router.get("/hotspots", response_model=HotspotApiResponse)
+class HotspotStatsResponse(BaseModel):
+    status: str = "success"
+    summary: Dict[str, Any] = {}
+    confidenceBreakdown: Optional[List[Dict[str, Any]]] = []
+    confidence_breakdown: Optional[List[Dict[str, Any]]] = []
+    satellite_breakdown: Optional[List[Dict[str, Any]]] = []
+    timeline: Optional[List[Dict[str, Any]]] = []
+    recent_timeline: Optional[List[Dict[str, Any]]] = []
+
+    model_config = {"extra": "allow"}
+
+# BAGIAN 2: Endpoint daftar dan filter spasial titik api (Flat Matrix)
+@router.get("/hotspots")
 async def read_hotspots(
-    sensor: str = Query("VIIRS_SNPP_NRT", description="Sensor type"),
-    days: Optional[int] = Query(None, description="Filter by number of past days"),
-    date: Optional[str] = Query(None, description="Exact acquisition date YYYY-MM-DD"),
-    startDate: Optional[str] = Query(None, description="Start date range YYYY-MM-DD"),
-    endDate: Optional[str] = Query(None, description="End date range YYYY-MM-DD"),
-    confidence: Optional[str] = Query(None, description="Confidence level filter"),
-    minBrightness: Optional[float] = Query(None, description="Minimum brightness value"),
-    minFrp: Optional[float] = Query(None, description="Minimum Fire Radiative Power (FRP)"),
-    limit: int = Query(20000, description="Max point limit (1-100000)"),
+    sensor: Optional[str] = Query("ALL", description="Sensor satelit (ALL, VIIRS_SNPP_NRT, VIIRS_NOAA20_NRT)"),
+    days: Optional[int] = Query(None, description="Rentang hari data (1-180)"),
+    date: Optional[str] = Query(None, description="Filter tanggal spesifik akuisisi (YYYY-MM-DD)"),
+    startDate: Optional[str] = Query(None, description="Tanggal awal rentang (YYYY-MM-DD)"),
+    endDate: Optional[str] = Query(None, description="Tanggal akhir rentang (YYYY-MM-DD)"),
+    confidence: Optional[str] = Query(None, description="Filter tingkat keyakinan (h, n, l)"),
+    minBrightness: Optional[float] = Query(None, description="Suhu kecerahan minimum (Kelvin)"),
+    minFrp: Optional[float] = Query(None, description="Minimum Fire Radiative Power (MW)"),
+    limit: int = Query(50000, ge=1, le=100000, description="Maksimum jumlah titik api yang diambil"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Fetch NASA FIRMS hotspot Flat Array Matrix from PostGIS database with high performance.
+    Mengambil data titik api NASA FIRMS dalam format flat array matrix.
     """
-    try:
-        res = await get_hotspots_from_db(
-            db=db,
-            sensor=sensor,
-            days=days,
-            date=date,
-            startDate=startDate,
-            endDate=endDate,
-            confidence=confidence,
-            minBrightness=minBrightness,
-            minFrp=minFrp,
-            limit=limit
-        )
-        if res.get("status") == "error":
-            raise HTTPException(status_code=400, detail=res.get("message", "Error querying hotspots"))
-        return res
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch hotspot data: {str(e)}")
+    return await get_hotspots_from_db(
+        db=db,
+        sensor=sensor or "ALL",
+        days=days,
+        date=date,
+        startDate=startDate,
+        endDate=endDate,
+        confidence=confidence,
+        minBrightness=minBrightness,
+        minFrp=minFrp,
+        limit=limit
+    )
 
+# BAGIAN 3: Endpoint statistik agregat titik api
 @router.get("/hotspots/stats", response_model=HotspotStatsResponse)
 async def read_hotspot_stats(db: AsyncSession = Depends(get_db)):
     """
-    Fetch aggregate statistics and analytical summaries for NASA FIRMS hotspots.
+    Mengambil ringkasan statistik dan tren titik api.
     """
     try:
         return await get_hotspot_stats_from_db(db)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to compute hotspot statistics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Gagal menghitung statistik titik api: {str(e)}")
 
+# BAGIAN 4: Endpoint konteks lingkungan per titik (Spatial KNN)
 @router.get("/hotspots/context")
 async def get_hotspot_environmental_context(
-    lat: float = Query(..., description="Latitude of hotspot"),
-    lng: float = Query(..., description="Longitude of hotspot"),
-    date: Optional[str] = Query(None, description="Acquisition date YYYY-MM-DD for spatial cluster detection"),
+    lat: float = Query(..., description="Latitude titik api"),
+    lng: float = Query(..., description="Longitude titik api"),
+    date: Optional[str] = Query(None, description="Tanggal akuisisi (YYYY-MM-DD)"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get environmental factors (peatland intersection, temperature, soil moisture, rainfall)
-    and spatial cluster metrics (neighboring points within 15km) for a specific clicked hotspot point.
+    Mengambil faktor lingkungan (gambut, suhu, kelembapan, hujan) dan klaster sekitar titik api.
     """
-    from app.features.hotspot.service import get_environmental_context_at_point
     return await get_environmental_context_at_point(db=db, lat=lat, lng=lng, date_str=date)
-
-@router.post("/hotspots/sync-now", response_model=HotspotSyncResponse)
-async def trigger_hotspot_sync(
-    sensor: str = Query("VIIRS_SNPP_NRT", description="Sensor type"),
-    days: int = Query(5, ge=1, le=5, description="Number of past days to fetch (1-5)")
-):
-    """
-    Manually trigger NASA FIRMS data sync to update local database and invalidate cache.
-    """
-    try:
-        res = await sync_nasa_firms_data(source=sensor, day_range=days)
-        if res.get("status") == "error":
-            raise HTTPException(status_code=500, detail=res.get("message"))
-        return res
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to execute NASA FIRMS sync: {str(e)}")
-
-@router.post("/hotspots/sync-climate")
-async def trigger_hotspot_climate_sync(
-    date: Optional[str] = Query(None, description="Tanggal akuisisi hotspot YYYY-MM-DD (opsional, default: tanggal terbaru)"),
-    precision: int = Query(2, ge=1, le=4, description="Presisi pembulatan koordinat untuk deduplikasi spasial (default 2 desimal ~1km)")
-):
-    """
-    Trigger sinkronisasi iklim dinamis (Suhu, Curah Hujan, Kelembapan Tanah)
-    untuk seluruh koordinat hotspot aktif ke Open-Meteo API dan disimpan ke tabel masing-masing.
-    """
-    try:
-        from app.features.hotspot.climate_sync import sync_all_climate_for_hotspots
-        res = await sync_all_climate_for_hotspots(target_date=date, precision=precision)
-        return res
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to execute dynamic climate sync: {str(e)}")
-

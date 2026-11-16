@@ -1,3 +1,4 @@
+// BAGIAN 1: Import library dan modul pendukung
 import React from 'react';
 import { Popup } from 'react-leaflet';
 import { PeatlandProperties } from '../types/peatland.types';
@@ -6,6 +7,7 @@ interface PeatlandPopupProps {
   properties: PeatlandProperties;
 }
 
+// BAGIAN 2: Komponen baris detail informasi atribut
 const Row: React.FC<{ label: string; valueClass?: string; children: React.ReactNode }> = ({
   label,
   valueClass = '',
@@ -17,11 +19,12 @@ const Row: React.FC<{ label: string; valueClass?: string; children: React.ReactN
   </tr>
 );
 
+// BAGIAN 3: Komponen popup detail lahan gambut
 export const PeatlandPopup: React.FC<PeatlandPopupProps> = ({ properties }) => {
   return (
     <Popup>
       <div className="min-w-[220px] p-1">
-        <h3 className="mb-2 text-[15px] font-semibold text-emerald-950">🌿 {properties.name}</h3>
+        <h3 className="mb-2 text-[15px] font-semibold text-emerald-950">{properties.name}</h3>
         <table className="w-full border-collapse text-xs">
           <tbody>
             <Row label="Provinsi:">{properties.province}</Row>

@@ -1,3 +1,9 @@
+// ==============================================================================
+// HOOK DATA TITIK API (USE HOTSPOTS HOOK)
+// ==============================================================================
+// Mengelola state pemanggilan data titik api, loading, dan error handling.
+// ==============================================================================
+
 import { useState, useEffect } from 'react';
 import { fetchHotspots } from '../api/hotspot';
 import { SensorType, HotspotMatrixRow, HotspotMeta } from '../types/hotspot.types';
@@ -17,6 +23,7 @@ export function useHotspots(
   startDate?: string,
   endDate?: string
 ): UseHotspotsResult {
+  // BAGIAN 1: State penampung data matriks, loading, dan error
   const [hotspots, setHotspots] = useState<HotspotMatrixRow[]>([]);
   const [columns, setColumns] = useState<string[]>([
     'lat', 'lng', 'brightness', 'frp', 'confidence', 'acq_date', 'acq_time'
@@ -25,6 +32,7 @@ export function useHotspots(
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<HotspotMeta>({ count: 0, source: 'loading...' });
 
+  // BAGIAN 2: Efek pemanggilan API saat parameter filter berubah
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -39,9 +47,9 @@ export function useHotspots(
         setLoading(false);
       })
       .catch((err: Error) => {
-        console.error('[useHotspots] Error fetching hotspots from backend API:', err);
+        console.error('[useHotspots] Gagal memuat data:', err.message);
         if (isMounted) {
-          setError(err.message || 'Gagal memuat data dari backend PostGIS');
+          setError(err.message || 'Gagal memuat data dari database');
           setHotspots([]);
           setMeta({ count: 0, source: 'error' });
           setLoading(false);

@@ -1,24 +1,25 @@
+// BAGIAN 1: Import library dan modul pendukung
 import React, { useState } from 'react';
 import { Layers, ChevronUp, ChevronDown } from 'lucide-react';
 import { ESRI_LAND_COVER_CLASSES } from '../constants/landCover.constants';
 
+// BAGIAN 2: Interface properti komponen legenda tutupan lahan
 interface LandCoverLegendProps {
   opacity?: number;
   onOpacityChange?: (opacity: number) => void;
   activeProviderName: string;
 }
 
+// BAGIAN 3: Komponen visual legenda tutupan lahan (LULC)
 export const LandCoverLegend: React.FC<LandCoverLegendProps> = ({
   activeProviderName,
 }) => {
-  // Default collapsed on mobile screens (< 768px) to prevent screen overcrowding
   const [isCollapsed, setIsCollapsed] = useState<boolean>(
     () => typeof window !== 'undefined' && window.innerWidth < 768
   );
 
   return (
     <div className="landcover-legend-card rounded-xl border border-slate-200/90 bg-white/95 p-3 text-xs text-slate-800 shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md min-w-[240px]">
-      {/* Legend Title Bar */}
       <div className="flex items-center justify-between gap-2 pb-1.5 mb-2 border-b border-slate-200">
         <div className="flex items-center gap-1.5 font-bold text-slate-900">
           <Layers className="w-4 h-4 text-emerald-600" />
@@ -36,13 +37,11 @@ export const LandCoverLegend: React.FC<LandCoverLegendProps> = ({
 
       {!isCollapsed && (
         <div className="space-y-2">
-          {/* Provider Badge */}
           <div className="flex items-center justify-between bg-emerald-50 text-emerald-800 text-[10px] px-2 py-1 rounded border border-emerald-200">
             <span className="truncate font-medium">{activeProviderName}</span>
             <span className="font-mono text-[9px] bg-emerald-200/70 px-1 rounded text-emerald-900 font-semibold">10m</span>
           </div>
 
-          {/* Color Items Stack */}
           <div className="grid grid-cols-1 gap-1 max-h-52 overflow-y-auto pr-1">
             {Object.values(ESRI_LAND_COVER_CLASSES).map((item) => (
               <div
@@ -63,3 +62,5 @@ export const LandCoverLegend: React.FC<LandCoverLegendProps> = ({
     </div>
   );
 };
+
+export default LandCoverLegend;

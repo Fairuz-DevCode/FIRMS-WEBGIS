@@ -1,10 +1,10 @@
-# 🌤️ Dokumentasi Sinkronisasi Iklim Dinamis (Dynamic Climate Sync)
+# ️ Dokumentasi Sinkronisasi Iklim Dinamis (Dynamic Climate Sync)
 
 Dokumentasi ini menjelaskan arsitektur, strategi ekstraksi koordinat, pemanggilan batch API ke Open-Meteo, serta mekanisme penyimpanan terdistribusi ke masing-masing tabel fitur (*Rainfall, Temperature, Soil Moisture*) di PostgreSQL/PostGIS.
 
 ---
 
-## 📌 1. Latar Belakang & Konsep Arsitektur
+##  1. Latar Belakang & Konsep Arsitektur
 
 Sistem pemantauan karhutla ini menggabungkan dua paradigma data iklim:
 1. **Data Historis Statis (ERA5 NetCDF/CSV):** Mencakup rentang waktu lampau (hingga bulan Agustus/Oktober) dengan grid dense ~18.000 titik di seluruh daratan Indonesia.
@@ -74,7 +74,7 @@ flowchart TD
 
 ---
 
-## 🗄️ 3. Distribusi Data ke Masing-Masing Tabel Fitur
+## ️ 3. Distribusi Data ke Masing-Masing Tabel Fitur
 
 Setiap fitur memiliki modul dan fungsi sinkronisasi terpisah untuk menjaga prinsip *separation of concerns*:
 
@@ -93,7 +93,7 @@ Setiap fitur memiliki modul dan fungsi sinkronisasi terpisah untuk menjaga prins
 
 ---
 
-## 🚀 4. Orkestrasi Terpadu & Otomatisasi
+##  4. Orkestrasi Terpadu & Otomatisasi
 
 ### A. Otomatisasi Terintegrasi dengan NASA FIRMS
 Di [`backend/app/features/hotspot/sync.py`](file:///home/allrole/Documents/Mata Kuliah/spasial/backend/app/features/hotspot/sync.py), begitu satelit mendeteksi hotspot baru dan berhasil menyimpannya ke database, sistem secara otomatis mengeksekusi:
@@ -137,7 +137,7 @@ Sehingga data cuaca untuk hotspot baru langsung tersedia tanpa tindakan manual.
 
 ---
 
-## 🔍 5. Penggunaan pada Analisis Spasial Hotspot (Spatial Context)
+##  5. Penggunaan pada Analisis Spasial Hotspot (Spatial Context)
 
 Ketika pengguna mengklik titik hotspot di peta frontend, endpoint berikut dipanggil:
 * `GET /api/hotspots/context?lat=-4.6&lng=120.1&date=2026-11-01`

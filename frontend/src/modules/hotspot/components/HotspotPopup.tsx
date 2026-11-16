@@ -28,7 +28,7 @@ export default function HotspotPopup({ properties: props, confidenceLevel }: Hot
     <Popup>
       <div className="min-w-[250px]">
         <div className="mb-1.5 flex items-center justify-between border-b border-slate-200 pb-1.5">
-          <span className="font-display text-sm font-bold text-slate-900">🔥 Active Hotspot</span>
+          <span className="font-display text-sm font-bold text-slate-900">Active Hotspot</span>
           <span
             className={`rounded-md border px-2 py-0.5 text-[0.7rem] font-bold uppercase ${BADGE_STYLE[confidenceLevel]}`}
           >

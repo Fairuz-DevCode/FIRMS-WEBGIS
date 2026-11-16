@@ -1,7 +1,9 @@
+# BAGIAN 1: Import library dan modul pendukung
 from sqlalchemy import Column, Integer, Float, DateTime, Boolean
 from geoalchemy2 import Geometry
-from app.core.database import Base
+from app.config.database import Base
 
+# BAGIAN 2: Model ORM PostGIS untuk kelembaban tanah (soil moisture)
 class SoilMoisture(Base):
     __tablename__ = "soil_moisture_data"
 
@@ -13,6 +15,7 @@ class SoilMoisture(Base):
     is_indonesia = Column(Boolean, default=True, nullable=True)
     geom = Column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
 
+    # BAGIAN 3: Serialisasi format array koordinat dan nilai kelembaban tanah
     def to_flat_array(self) -> list:
         return [
             float(self.longitude), 

@@ -1,8 +1,15 @@
+// BAGIAN 1: Import library dan modul pendukung
 import React, { useEffect, useState, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { getApiBaseUrl } from '../../../shared/utils/api';
 import { ClimateType } from '../types/climate.types';
+import { 
+  getRainfallColor, 
+  getSoilMoistureColor, 
+  getTemperatureColor 
+} from '../constants/climate.constants';
+import { fetchClimateGrid, getBoundaryGeoJSON } from '../api/climate';
+
 export type { ClimateType };
 
 interface ClimateLayerProps {
@@ -12,31 +19,7 @@ interface ClimateLayerProps {
   date?: string;
 }
 
-// Module-level cache for Indonesia boundary GeoJSON to prevent redundant network fetches
-let cachedBoundaryGeoJSON: any = null;
-let boundaryPromise: Promise<any> | null = null;
-
-async function getBoundaryGeoJSON(): Promise<any> {
-  if (cachedBoundaryGeoJSON) return cachedBoundaryGeoJSON;
-  if (!boundaryPromise) {
-    boundaryPromise = fetch('/indonesia_boundary.geojson')
-      .then(res => res.json())
-      .then(json => {
-        cachedBoundaryGeoJSON = json;
-        return json;
-      })
-      .catch(err => {
-        console.warn('Failed to load indonesia_boundary.geojson:', err);
-        return null;
-      });
-  }
-  return boundaryPromise;
-}
-
-/**
- * Draws the vector boundary of all Indonesian islands onto the canvas context.
- * Used as a sub-pixel vector clipping mask to cut raster graphics along exact coastlines.
- */
+// BAGIAN 2: Fungsi clipping mask vektor batas kepulauan Indonesia
 function drawBoundaryMask(
   ctx: CanvasRenderingContext2D,
   boundary: any,
@@ -81,25 +64,15 @@ function drawBoundaryMask(
   ctx.fill('evenodd');
 }
 
-/**
- * Geographic bounding box check for Indonesian domain
- */
 function isInIndonesia(lng: number, lat: number): boolean {
   return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
 }
 
-// Convert RGB hex string to RGBA values [r, g, b, a]
 function hexToRgba(hex: string, alpha: number = 220): [number, number, number, number] {
   const clean = hex.replace('#', '');
   const num = parseInt(clean, 16);
   return [(num >> 16) & 255, (num >> 8) & 255, num & 255, alpha];
 }
-
-import { 
-  getRainfallColor, 
-  getSoilMoistureColor, 
-  getTemperatureColor 
-} from '../../../map/constants/climate.constants';
 
 function getGridColorRgba(type: ClimateType, val: number): [number, number, number, number] {
   let hex = '#38bdf8';
@@ -113,6 +86,7 @@ function getGridColorRgba(type: ClimateType, val: number): [number, number, numb
   return hexToRgba(hex, 230);
 }
 
+// BAGIAN 4: Komponen layer raster iklim kontinu menggunakan HTML5 Canvas
 export const ClimateLayer: React.FC<ClimateLayerProps> = ({
   type,
   visible,
@@ -121,10 +95,9 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 }) => {
   const map = useMap();
   const [data, setData] = useState<number[][]>([]);
-  const [boundary, setBoundary] = useState<any>(cachedBoundaryGeoJSON);
+  const [boundary, setBoundary] = useState<any>(null);
   const overlayRef = useRef<L.ImageOverlay | null>(null);
 
-  // Fetch Indonesia boundary GeoJSON for vector masking
   useEffect(() => {
     if (!boundary) {
       getBoundaryGeoJSON().then(geojson => {
@@ -137,34 +110,23 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     if (!visible) return;
 
     let isMounted = true;
-    let endpoint = type === 'rainfall' 
-      ? '/api/rainfall?limit=20000' 
-      : (type === 'soil_moisture' ? '/api/soil-moisture?limit=20000' : '/api/temperature?limit=20000');
-
-    if (date) {
-      endpoint += `&date=${encodeURIComponent(date)}`;
-    }
-
-    const backendUrl = getApiBaseUrl();
-
-    fetch(`${backendUrl}${endpoint}`)
-      .then(res => res.json())
-      .then(json => {
-        if (isMounted && json.data) {
-          setData(json.data);
+    fetchClimateGrid(type, date)
+      .then(gridData => {
+        if (isMounted) {
+          setData(gridData);
         }
       })
       .catch(err => {
-        console.warn(`[ClimateLayer ${type}] Failed to fetch grid data:`, err);
+        console.warn(`[ClimateLayer ${type}] Gagal memuat grid:`, err);
       });
 
     return () => { isMounted = false; };
   }, [type, visible, date]);
 
+  // BAGIAN 5: Render raster, interpolasi spatial kernel, dan masking pada peta
   useEffect(() => {
     if (!map) return;
 
-    // Clean up previous overlay
     if (overlayRef.current) {
       if (map.hasLayer(overlayRef.current)) {
         map.removeLayer(overlayRef.current);
@@ -174,19 +136,15 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
     if (!visible || !data || data.length === 0) return;
 
-    // Grid bounds definition for Indonesia ERA5 domain
-    // Lat: -11.0 to 6.0 (step 0.1 deg -> 171 rows)
-    // Lon: 95.0 to 141.0 (step 0.1 deg -> 461 cols)
     const minLat = -11.0;
     const maxLat = 6.0;
     const minLon = 95.0;
     const maxLon = 141.0;
     const step = 0.1;
 
-    const cols = Math.round((maxLon - minLon) / step) + 1; // 461
-    const rows = Math.round((maxLat - minLat) / step) + 1; // 171
+    const cols = Math.round((maxLon - minLon) / step) + 1;
+    const rows = Math.round((maxLat - minLat) / step) + 1;
 
-    // Create an offscreen canvas to generate continuous meteorological raster
     const canvas = document.createElement('canvas');
     canvas.width = cols;
     canvas.height = rows;
@@ -196,14 +154,8 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     const imgData = ctx.createImageData(cols, rows);
     const pixels = imgData.data;
 
-    // Two-pass normalized spatial value interpolation:
-    // 1. Ambil data aktual dan akumulasi nilai terbobot (IDW / Smooth Kernel)
-    // 2. Hitung nilai interpolasi kontinu di setiap titik, lalu warnai (Color Transfer Function)
     const valSum = new Float32Array(cols * rows);
     const weightSum = new Float32Array(cols * rows);
-
-    // Radius sel grid: resolusi 0.1 deg/sel.
-    // Untuk grid dinamis 0.5 deg (~5 sel), radius 6 menjamin cakupan kontinu tanpa garis-garis atau celah
     const interpRadius = data.length < 5000 ? 6 : 2;
 
     for (let i = 0; i < data.length; i++) {
@@ -211,14 +163,11 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
       if (lat === undefined || lng === undefined || val === null || val === undefined) continue;
       if (!isInIndonesia(lng, lat)) continue;
 
-      // Abaikan data anomali / dummy laut / null
       if (type === 'soil_moisture' && val <= 0.01) continue;
       if (type === 'temperature' && val < 5) continue;
       if (type === 'rainfall' && val < 0) continue;
 
-      // Col (X) from west (95.0) to east (141.0)
       const x = Math.round((lng - minLon) / step);
-      // Row (Y) from north (6.0) to south (-11.0)
       const y = Math.round((maxLat - lat) / step);
 
       if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
@@ -232,7 +181,6 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
             if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
               const idx = ny * cols + nx;
               const dist = Math.sqrt(d2);
-              // Smooth cosine weight falloff (mencegah artefak garis dan batas kaku)
               const w = Math.cos((dist / interpRadius) * (Math.PI / 2));
               valSum[idx] += val * w;
               weightSum[idx] += w;
@@ -242,7 +190,6 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
       }
     }
 
-    // Ambil data nilai kontinu yang telah diinterpolasi, baru diwarnai
     for (let idx = 0; idx < cols * rows; idx++) {
       const totalW = weightSum[idx];
       if (totalW > 0.001) {
@@ -258,7 +205,6 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
     ctx.putImageData(imgData, 0, 0);
 
-    // Apply high-resolution scaling with bilinear smoothing to blend discrete grid steps into smooth weather gradients
     const smoothCanvas = document.createElement('canvas');
     smoothCanvas.width = cols * 4;
     smoothCanvas.height = rows * 4;
@@ -269,7 +215,6 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
       sCtx.filter = 'blur(2px)';
       sCtx.drawImage(canvas, 0, 0, smoothCanvas.width, smoothCanvas.height);
 
-      // Apply Indonesia vector coastline and border mask (cuts the raster exactly along real island borders)
       if (boundary) {
         const maskCanvas = document.createElement('canvas');
         maskCanvas.width = smoothCanvas.width;
@@ -283,7 +228,6 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
             north: maxLat + step / 2,
           });
 
-          // Composite operation: keep only pixels that fall strictly inside Indonesian land territory
           sCtx.globalCompositeOperation = 'destination-in';
           sCtx.filter = 'none';
           sCtx.drawImage(maskCanvas, 0, 0);
@@ -293,7 +237,6 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
     const dataUrl = (sCtx ? smoothCanvas : canvas).toDataURL('image/png');
 
-    // Geo-referenced bounds for the continuous meteorological raster
     const imageBounds = L.latLngBounds(
       [minLat - step / 2, minLon - step / 2],
       [maxLat + step / 2, maxLon + step / 2]
@@ -316,14 +259,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     };
   }, [map, visible, data, type, boundary]);
 
-  // Dynamically update overlay opacity instantly when slider changes
-  useEffect(() => {
-    if (overlayRef.current) {
-      overlayRef.current.setOpacity(opacity);
-    }
-  }, [opacity]);
-
-  // Dynamically update overlay opacity instantly when slider changes
+  // BAGIAN 6: Sinkronisasi nilai opasitas layer saat slider digeser
   useEffect(() => {
     if (overlayRef.current) {
       overlayRef.current.setOpacity(opacity);

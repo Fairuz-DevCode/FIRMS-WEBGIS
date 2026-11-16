@@ -1,13 +1,17 @@
+# BAGIAN 1: Import library dan modul pendukung
 import os
 from typing import Dict, Any, List, Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from shapely.geometry import Point
 import geopandas as gpd
-from app.core.utils.cache import cache
-from app.features.hotspot.service import get_hotspots_from_db
+from app.config.cache import cache
 
+# BAGIAN 2: Pengambilan GeoJSON batas lahan gambut dari database PostGIS
 async def get_peatland_geojson_from_db(db: AsyncSession) -> Dict[str, Any]:
+    """
+    Ambil FeatureCollection GeoJSON poligon lahan gambut dari PostGIS.
+    """
     cache_key = "peatland_geojson_featurecollection"
     cached = cache.get(cache_key)
     if cached:
@@ -39,18 +43,18 @@ async def get_peatland_geojson_from_db(db: AsyncSession) -> Dict[str, Any]:
         geojson = result.scalar()
 
         if geojson and isinstance(geojson, dict):
-            cache.set(cache_key, geojson, DEFAULT_CACHE_TTL if 'DEFAULT_CACHE_TTL' in globals() else 86400)
+            cache.set(cache_key, geojson, 86400)
             return geojson
 
         return {"type": "FeatureCollection", "features": []}
     except Exception as e:
-        print(f"[PeatlandService Warning] PostGIS query failed: {e}")
+        print(f"[PeatlandService Error] PostGIS query: {e}")
         return {"type": "FeatureCollection", "features": []}
 
+# BAGIAN 3: Analisis spasial PostGIS ST_Intersects hotspot vs kubah gambut
 async def analyze_peatland_hotspots_db(db: AsyncSession, days: int = 30) -> Optional[Dict[str, Any]]:
     """
-    Executes high-performance PostGIS Spatial Join (ST_Intersects / GiST Index)
-    between Hotspots points and Peatlands polygons directly in the database.
+    Spatial join PostGIS (ST_Intersects) antara titik hotspot dan kubah gambut.
     """
     try:
         query = text("""
@@ -87,12 +91,13 @@ async def analyze_peatland_hotspots_db(db: AsyncSession, days: int = 30) -> Opti
                 "source": "postgis_spatial_index"
             }
     except Exception as e:
-        print(f"[PeatlandService PostGIS Warning] {e}")
+        print(f"[PeatlandService Error] Spatial join: {e}")
     return None
 
+# BAGIAN 4: Fallback analisis spasial GeoPandas Point-in-Polygon
 def analyze_peatland_hotspots_gpd(hotspot_features: List[Dict[str, Any]], peatland_geojson_path: str) -> Dict[str, Any]:
     """
-    Fallback using GeoPandas & Shapely to perform Spatial Intersection (Point-in-Polygon).
+    Fallback GeoPandas spatial join saat database PostGIS tidak tersedia.
     """
     if not hotspot_features:
         return {
@@ -131,7 +136,7 @@ def analyze_peatland_hotspots_gpd(hotspot_features: List[Dict[str, Any]], peatla
             high_risk_gdf = joined[joined["frp"] > 50]
             high_risk = high_risk_gdf[["id", "latitude", "longitude", "brightness", "frp", "acq_date"]].to_dict(orient="records")
         except Exception as e:
-            print(f"[PeatlandService GeoPandas Warning] {e}")
+            print(f"[PeatlandService Error] GeoPandas join: {e}")
 
     total = len(hotspots_gdf)
     pct = round((in_peatland_count / total * 100.0), 2) if total > 0 else 0.0

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Radio, ChevronDown, ChevronUp } from 'lucide-react';
-import { HOTSPOT_COL, HotspotMatrixRow, SensorType } from '../types/hotspot.types';
+import { HotspotMatrixRow, SensorType } from '../types/hotspot.types';
+import { HOTSPOT_COL } from '../constants/hotspot.constants';
 
 interface SatelliteStatsProps {
   hotspots?: HotspotMatrixRow[] | any[];
@@ -9,9 +10,9 @@ interface SatelliteStatsProps {
 
 /**
  * 3 Range Klasifikasi Suhu Kecerahan Titik Api (Kanal I4 Satelit VIIRS 375m):
- * - low  : < 335 K (< 62°C)       -> 🟡 Amber (Sedang)
- * - med  : 335 - 349 K (62 - 76°C)-> 🟠 Oranye (Tinggi)
- * - high : >= 350 K (>= 77°C)     -> 🔴 Merah Pekat (Ekstrem)
+ * - low  : < 335 K (< 62°C)       -> Amber (Sedang)
+ * - med  : 335 - 349 K (62 - 76°C)-> Oranye (Tinggi)
+ * - high : >= 350 K (>= 77°C)     -> Merah (Ekstrem)
  */
 interface Counter {
   low: number;

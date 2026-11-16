@@ -1,3 +1,9 @@
+# ==============================================================================
+# SERVICE DATA TITIK API (HOTSPOT SERVICE)
+# ==============================================================================
+# Menangani query titik api, format flat matrix, caching, dan konteks spasial KNN.
+# ==============================================================================
+
 import datetime
 import hashlib
 import json
@@ -5,24 +11,27 @@ from typing import Optional, Dict, Any, List
 from sqlalchemy import select, func, cast, Integer, case, or_, and_, not_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.hotspot.models import Hotspot
-from app.core.utils.cache import cache
+from app.config.cache import cache
 
-# Default cache TTL: 12 hours (43,200 seconds) for long-duration read caching
 DEFAULT_CACHE_TTL = 43200
-
 COLUMNS_HEADER = ["lat", "lng", "brightness", "frp", "confidence", "acq_date", "acq_time"]
 
+
 def _parse_iso_date(date_str: str, field_name: str) -> datetime.date:
+    """
+    Parse string tanggal format YYYY-MM-DD.
+    """
     if not date_str or not isinstance(date_str, str):
-        raise ValueError(f"Missing or invalid string value for date parameter '{field_name}'.")
+        raise ValueError(f"Parameter '{field_name}' tidak valid.")
     try:
         return datetime.datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
     except ValueError:
-        raise ValueError(f"Invalid date format for '{field_name}': '{date_str}'. Expected format is 'YYYY-MM-DD'.")
+        raise ValueError(f"Format tanggal salah untuk '{field_name}': '{date_str}'. Gunakan YYYY-MM-DD.")
+
 
 async def get_hotspots_from_db(
     db: AsyncSession,
-    sensor: str = "VIIRS_SNPP_NRT",
+    sensor: str = "ALL",
     days: Optional[int] = None,
     date: Optional[str] = None,
     startDate: Optional[str] = None,
@@ -30,11 +39,14 @@ async def get_hotspots_from_db(
     confidence: Optional[str] = None,
     minBrightness: Optional[float] = None,
     minFrp: Optional[float] = None,
-    limit: int = 20000
+    limit: int = 50000
 ) -> Dict[str, Any]:
-    max_limit = min(max(int(limit or 20000), 1), 100000)
+    """
+    Mengambil data titik api dari database dengan format Flat Matrix dan cache in-memory.
+    """
+    max_limit = min(max(int(limit or 50000), 1), 100000)
 
-    # 1. Build deterministic MD5 cache key from sorted parameter dictionary
+    # BAGIAN 1: Generate MD5 cache key dari parameter filter
     cache_params = {
         "sensor": sensor,
         "days": days,
@@ -50,13 +62,12 @@ async def get_hotspots_from_db(
     cache_hash = hashlib.md5(serialized_params.encode("utf-8")).hexdigest()
     cache_key = f"hotspots_matrix_{cache_hash}"
 
-    # Check in-memory cache
     cached = cache.get(cache_key)
     if cached:
         return cached
 
     try:
-        # 2. Select only scalar columns (bypasses full ORM overhead & geometry serialization)
+        # BAGIAN 2: Query seleksi kolom skalar (tanpa ORM overhead)
         query = select(
             Hotspot.latitude,
             Hotspot.longitude,
@@ -69,30 +80,36 @@ async def get_hotspots_from_db(
 
         conditions = []
 
-        # 3. Date filtering with strict validation (no silent 'except: pass')
-        if startDate and endDate:
-            s_dt = _parse_iso_date(startDate, "startDate")
-            e_dt = _parse_iso_date(endDate, "endDate")
+        # BAGIAN 3: Filter tanggal
+        date_clean = date.strip() if date and date.strip() not in ["", "null", "undefined"] else None
+        startDate_clean = startDate.strip() if startDate and startDate.strip() not in ["", "null", "undefined"] else None
+        endDate_clean = endDate.strip() if endDate and endDate.strip() not in ["", "null", "undefined"] else None
+
+        if startDate_clean and endDate_clean:
+            s_dt = _parse_iso_date(startDate_clean, "startDate")
+            e_dt = _parse_iso_date(endDate_clean, "endDate")
             if s_dt > e_dt:
-                raise ValueError(f"startDate '{startDate}' cannot be after endDate '{endDate}'.")
+                raise ValueError(f"startDate '{startDate}' tidak boleh setelah endDate '{endDate}'.")
             conditions.append(Hotspot.acq_date.between(s_dt, e_dt))
-        elif date:
-            target_dt = _parse_iso_date(date, "date")
+        elif date_clean:
+            target_dt = _parse_iso_date(date_clean, "date")
             conditions.append(Hotspot.acq_date == target_dt)
         elif days is not None and int(days) > 0:
             today_dt = datetime.date.today()
             start_dt = today_dt - datetime.timedelta(days=int(days))
             conditions.append(Hotspot.acq_date >= start_dt)
         else:
-            # Default behavior when no date params provided: today's hotspots
-            today_dt = datetime.date.today()
-            conditions.append(Hotspot.acq_date == today_dt)
+            latest_date_query = select(func.max(Hotspot.acq_date))
+            latest_date = (await db.execute(latest_date_query)).scalar()
+            if latest_date:
+                conditions.append(Hotspot.acq_date == latest_date)
+            else:
+                today_dt = datetime.date.today()
+                conditions.append(Hotspot.acq_date == today_dt)
 
-        # 4. Confidence filtering without unsafe integer casts on string columns
+        # BAGIAN 4: Filter tingkat keyakinan (confidence)
         if confidence and confidence.strip().lower() not in ["all", ""]:
             conf_val = confidence.strip().lower()
-
-            # Safe conditional cast: only cast to Integer when text matches strictly digits (0-9)
             safe_numeric_conf = case(
                 (Hotspot.confidence.op("~")(r"^\d+$"), cast(Hotspot.confidence, Integer)),
                 else_=None
@@ -122,13 +139,12 @@ async def get_hotspots_from_db(
             else:
                 conditions.append(Hotspot.confidence.ilike(confidence.strip()))
 
-        # 5. Brightness & FRP filtering
+        # BAGIAN 5: Filter nilai fisik (Brightness, FRP, Jam Lintas Satelit)
         if minBrightness is not None:
             conditions.append(Hotspot.brightness >= float(minBrightness))
         if minFrp is not None:
             conditions.append(Hotspot.frp >= float(minFrp))
 
-        # 5b. Satellite sensor filtering (VIIRS S-NPP vs NOAA-20 based on acquisition overpass)
         if sensor == "VIIRS_NOAA20_NRT":
             safe_numeric_time = case(
                 (Hotspot.acq_time.op("~")(r"^\d+$"), cast(Hotspot.acq_time, Integer)),
@@ -154,7 +170,6 @@ async def get_hotspots_from_db(
                 )
             )
 
-        # 6. Apply filter list via generator/sequence unpacking
         if conditions:
             query = query.where(*conditions)
 
@@ -163,7 +178,7 @@ async def get_hotspots_from_db(
         result = await db.execute(query)
         rows = result.all()
 
-        # 7. Construct Flat Array Matrix
+        # BAGIAN 6: Susun matriks 2D datar [lat, lng, ...] untuk hemat bandwidth
         data_matrix: List[List[Any]] = [
             [
                 float(row.latitude),
@@ -184,7 +199,7 @@ async def get_hotspots_from_db(
             "data": data_matrix
         }
 
-        # Cache with long-lived TTL (12 hours)
+        # Simpan ke cache memori (TTL 12 jam)
         cache.set(cache_key, response_data, ttl_seconds=DEFAULT_CACHE_TTL)
         return response_data
 
@@ -198,20 +213,22 @@ async def get_hotspots_from_db(
             "message": str(val_err)
         }
     except Exception as e:
-        print(f"[HotspotService Error] Database query failed: {e}")
+        print(f"[HotspotService Error] Query gagal: {e}")
         return {
             "status": "error",
             "count": 0,
             "columns": COLUMNS_HEADER,
             "data": [],
-            "message": f"Database query failed: {str(e)}"
+            "message": f"Query database gagal: {str(e)}"
         }
+
 
 async def get_hotspot_stats_from_db(db: AsyncSession) -> Dict[str, Any]:
     """
-    Fetch aggregate statistics and analytical summaries for NASA FIRMS hotspots.
+    Mengambil ringkasan statistik agregat titik api.
     """
     try:
+        # BAGIAN 1: Query agregasi total, tanggal min/max, rata-rata brightness dan FRP
         summary_query = select(
             func.count(Hotspot.id).label("total_hotspots"),
             func.min(Hotspot.acq_date).label("min_date"),
@@ -222,12 +239,14 @@ async def get_hotspot_stats_from_db(db: AsyncSession) -> Dict[str, Any]:
         )
         summary_res = (await db.execute(summary_query)).first()
 
+        # BAGIAN 2: Breakdown confidence level
         conf_query = select(
             Hotspot.confidence,
             func.count(Hotspot.id).label("count")
         ).group_by(Hotspot.confidence)
         conf_res = (await db.execute(conf_query)).all()
 
+        # BAGIAN 3: Tren 14 hari terakhir
         timeline_query = select(
             Hotspot.acq_date,
             func.count(Hotspot.id).label("count")
@@ -257,7 +276,10 @@ async def get_hotspot_stats_from_db(db: AsyncSession) -> Dict[str, Any]:
             "status": "success",
             "summary": summary_dict,
             "confidenceBreakdown": confidence_breakdown,
-            "timeline": timeline
+            "confidence_breakdown": confidence_breakdown,
+            "satellite_breakdown": [],
+            "timeline": timeline,
+            "recent_timeline": timeline
         }
     except Exception as e:
         print(f"[HotspotStats Error] {e}")
@@ -272,9 +294,13 @@ async def get_hotspot_stats_from_db(db: AsyncSession) -> Dict[str, Any]:
                 "max_frp": 0.0
             },
             "confidenceBreakdown": [],
+            "confidence_breakdown": [],
+            "satellite_breakdown": [],
             "timeline": [],
+            "recent_timeline": [],
             "error": str(e)
         }
+
 
 async def get_environmental_context_at_point(
     db: AsyncSession,
@@ -283,17 +309,10 @@ async def get_environmental_context_at_point(
     date_str: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Query PostGIS directly for environmental factors and spatial clustering at given lat, lng:
-    1. Peatland intersection (ST_Intersects)
-    2. Province name (ST_Intersects with indonesia_boundary)
-    3. Nearest ERA5 Temperature
-    4. Nearest ERA5 Soil Moisture
-    5. Nearest ERA5 Rainfall
-    6. Spatial Cluster Density (Hotspots count within ~15km radius)
+    Query PostGIS KNN untuk konteks lingkungan (gambut, suhu, kelembapan, hujan, klaster).
     """
     try:
         from sqlalchemy import text
-        import datetime
 
         target_date = None
         target_date_str = None
@@ -305,6 +324,7 @@ async def get_environmental_context_at_point(
                 target_date = None
                 target_date_str = None
 
+        # BAGIAN 1: Subquery tanggal iklim terdekat dan KNN PostGIS
         query = text("""
             WITH target_time AS (
                 SELECT 
@@ -367,6 +387,8 @@ async def get_environmental_context_at_point(
         """)
         result = await db.execute(query.bindparams(lat=lat, lng=lng, target_date=target_date, target_date_str=target_date_str))
         row = result.first()
+
+        # BAGIAN 2: Format respons dan pengkategorian parameter
         if row:
             temp_val = round(float(row.temperature), 1) if row.temperature is not None else None
             sm_val = round(float(row.soil_moisture), 3) if row.soil_moisture is not None else None
@@ -374,7 +396,6 @@ async def get_environmental_context_at_point(
             cluster_count = int(row.nearby_cluster_count or 0)
             nearest_km = float(row.nearest_neighbor_km or 0.0)
 
-            # Category labels
             temp_desc = "Panas Ekstrem" if temp_val is not None and temp_val > 32 else ("Hangat" if temp_val is not None and temp_val >= 26 else "Sejuk")
             sm_desc = "Sangat Kering (Kritis)" if sm_val is not None and sm_val < 0.2 else ("Cukup Lembab" if sm_val is not None and sm_val <= 0.35 else "Lembab / Jenuh Air")
             rain_desc = "Kering / Sangat Ringan" if rain_val is not None and rain_val < 5 else ("Hujan Sedang" if rain_val is not None and rain_val <= 20 else "Hujan Lebat")
@@ -410,4 +431,3 @@ async def get_environmental_context_at_point(
     except Exception as e:
         print(f"[EnvironmentalContext Error] {e}")
         return {"status": "error", "error": str(e), "is_peatland": False}
-

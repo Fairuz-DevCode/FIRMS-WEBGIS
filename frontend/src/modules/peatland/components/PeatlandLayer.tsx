@@ -1,23 +1,21 @@
+// BAGIAN 1: Import library dan modul pendukung
 import React, { useEffect, useState } from "react";
 import { GeoJSON } from "react-leaflet";
-import { Layer, PathOptions } from "leaflet";
-import { getApiBaseUrl } from "../../../shared/utils/api";
+import { Layer } from "leaflet";
 import {
   PeatlandFeatureCollection,
   PeatlandProperties,
 } from "../types/peatland.types";
+import { peatlandStyle } from "../constants/peatland.constants";
+import { fetchPeatlandGeoJSON } from "../api/peatland";
 
-export const peatlandStyle: PathOptions = {
-  color: "#CD853F", // Dark Orange / Amber border
-  fillColor: "#E6B875", // Amber fill
-  fillOpacity: 0.35, // Semi-transparent
-  weight: 1.5,
-};
+export { peatlandStyle };
 
 interface PeatlandLayerProps {
   visible?: boolean;
 }
 
+// BAGIAN 3: Komponen GeoJSON layer lahan gambut
 export const PeatlandLayer: React.FC<
   PeatlandLayerProps
 > = ({ visible = true }) => {
@@ -29,25 +27,13 @@ export const PeatlandLayer: React.FC<
 
     let isMounted = true;
 
-    const loadPeatlandData = async () => {
-      try {
-        const backendUrl = getApiBaseUrl();
-        const apiRes = await fetch(
-          `${backendUrl}/api/peatland`,
-        );
-        if (apiRes.ok) {
-          const json = await apiRes.json();
-          if (isMounted) setData(json);
-        }
-      } catch (err) {
-        console.error(
-          "[PeatlandLayer] Could not fetch peatland data from database API:",
-          err,
-        );
-      }
-    };
-
-    loadPeatlandData();
+    fetchPeatlandGeoJSON()
+      .then((json) => {
+        if (isMounted) setData(json);
+      })
+      .catch((err) => {
+        console.error("[PeatlandLayer] Gagal memuat data gambut:", err);
+      });
 
     return () => {
       isMounted = false;
@@ -56,6 +42,7 @@ export const PeatlandLayer: React.FC<
 
   if (!visible || !data) return null;
 
+  // BAGIAN 4: Binding popup informasi poligon lahan gambut
   const onEachFeature = (feature: any, layer: Layer) => {
     if (feature.properties) {
       const props =
@@ -70,7 +57,7 @@ export const PeatlandLayer: React.FC<
 
       const popupHtml = `
         <div style="min-width: 200px; padding: 4px; font-family: sans-serif; color: #0f172a;">
-          <h4 style="margin: 0 0 6px 0; color: #d97706; font-size: 14px; font-weight: bold;">🌿 ${title}</h4>
+          <h4 style="margin: 0 0 6px 0; color: #d97706; font-size: 14px; font-weight: bold;">${title}</h4>
           ${shapeArea ? `<p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Keluasan:</b> ${shapeArea} ha</p>` : ""}
           <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Status:</b> Kawasan Lindung Gambut</p>
         </div>
