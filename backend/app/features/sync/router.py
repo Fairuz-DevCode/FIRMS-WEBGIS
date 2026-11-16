@@ -55,12 +55,13 @@ async def trigger_firms_sync(
 @router.post("/climate")
 async def trigger_climate_sync(
     date: Optional[str] = Query(None, description="Tanggal akuisisi hotspot YYYY-MM-DD"),
-    precision: int = Query(2, ge=1, le=4, description="Presisi pembulatan koordinat deduplikasi")
+    precision: int = Query(2, ge=1, le=4, description="Presisi pembulatan koordinat deduplikasi"),
+    past_days: Optional[int] = Query(None, description="Ambil n hari terakhir (misal: 5)")
 ):
     """
     Sinkronisasi seluruh parameter cuaca (suhu, curah hujan, kelembapan) sekaligus dalam 1 batch Open-Meteo.
     """
     try:
-        return await sync_all_climate_for_hotspots(target_date=date, precision=precision)
+        return await sync_all_climate_for_hotspots(target_date=date, precision=precision, past_days=past_days)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal sinkronisasi iklim: {str(e)}")

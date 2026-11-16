@@ -36,10 +36,10 @@ async def lifespan(app: FastAPI):
     
     # Background Scheduler: Sinkronisasi otomatis jam 04:00 dan 16:00 WIB
     async def scheduled_sync_pipeline():
-        print("[Scheduler] Memulai sinkronisasi otomatis NASA FIRMS dan cuaca...")
+        print("[Scheduler] Memulai sinkronisasi otomatis NASA FIRMS dan cuaca 5 hari terakhir...")
         try:
             await sync_nasa_firms_data(day_range=5)
-            await sync_all_climate_for_hotspots()
+            await sync_all_climate_for_hotspots(past_days=5)
             print("[Scheduler] Sinkronisasi otomatis selesai.")
         except Exception as e_sched:
             print(f"[Scheduler Error] Sinkronisasi otomatis gagal: {e_sched}")
@@ -56,14 +56,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Scheduler Warning] Gagal memulai APScheduler: {e}")
 
-    # Fetch awal di latar belakang saat server start
+    # Fetch awal di latar belakang saat server start (otomatis tarik 5 hari terakhir untuk FIRMS dan Open-Meteo)
     async def initial_startup_sync():
         try:
-            print("[Startup Sync] Memulai fetch awal NASA FIRMS dan cuaca...")
+            print("[Startup Sync] Memulai fetch awal NASA FIRMS 5 hari terakhir...")
             res = await sync_nasa_firms_data(day_range=5)
             print(f"[Startup Sync] FIRMS: {res.get('message', 'Selesai')}")
-            await sync_all_climate_for_hotspots()
-            print("[Startup Sync] Sinkronisasi cuaca titik aktif selesai.")
+            print("[Startup Sync] Memulai fetch awal cuaca Open-Meteo 5 hari terakhir...")
+            await sync_all_climate_for_hotspots(past_days=5)
+            print("[Startup Sync] Sinkronisasi cuaca titik aktif 5 hari terakhir selesai.")
         except Exception as e_sync:
             print(f"[Startup Sync Error] Fetch awal gagal: {e_sync}")
 

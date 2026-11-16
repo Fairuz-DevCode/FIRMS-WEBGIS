@@ -43,12 +43,14 @@ async def fetch_weather_data(lat: float, lon: float, target_date: Optional[str] 
 async def fetch_weather_data_batch(
     coordinates: List[Tuple[float, float]],
     target_date: Optional[str] = None,
+    past_days: Optional[int] = None,
     chunk_size: int = 50,
     delay_between_chunks: float = 0.3
 ) -> List[Dict[str, Any]]:
     """
     Mengambil data iklim harian untuk banyak koordinat sekaligus dalam 1 request batch Open-Meteo.
     Dilengkapi backoff retry otomatis jika terkena rate limit (HTTP 429).
+    Jika past_days diisi (misal: 5), akan mengambil seluruh hari dalam rentang 5 hari terakhir sekaligus.
     """
     if not coordinates:
         return []
@@ -68,7 +70,10 @@ async def fetch_weather_data_batch(
                 "current": "soil_moisture_0_to_7cm,temperature_2m",
                 "timezone": "Asia/Jakarta"
             }
-            if target_date:
+            if past_days:
+                params["past_days"] = past_days
+                params["forecast_days"] = 1
+            elif target_date:
                 params["start_date"] = target_date
                 params["end_date"] = target_date
             else:
@@ -94,20 +99,39 @@ async def fetch_weather_data_batch(
                         daily = item.get("daily", {}) if isinstance(item, dict) else {}
                         current = item.get("current", {}) if isinstance(item, dict) else {}
 
+                        time_list = daily.get("time", [])
                         precip_list = daily.get("precipitation_sum", [])
                         temp_mean_list = daily.get("temperature_2m_mean", [])
-
-                        rain_val = precip_list[0] if precip_list and precip_list[0] is not None else None
-                        temp_val = temp_mean_list[0] if temp_mean_list and temp_mean_list[0] is not None else current.get("temperature_2m")
                         sm_val = current.get("soil_moisture_0_to_7cm")
 
-                        results.append({
-                            "latitude": orig_lat,
-                            "longitude": orig_lon,
-                            "temperature": temp_val,
-                            "rainfall": rain_val,
-                            "soil_moisture": sm_val
-                        })
+                        if past_days and time_list:
+                            for idx_day, day_str in enumerate(time_list):
+                                r_val = precip_list[idx_day] if idx_day < len(precip_list) else None
+                                t_val = temp_mean_list[idx_day] if idx_day < len(temp_mean_list) else None
+                                try:
+                                    w_dt = datetime.strptime(day_str, "%Y-%m-%d")
+                                except Exception:
+                                    w_dt = datetime.now()
+
+                                results.append({
+                                    "latitude": orig_lat,
+                                    "longitude": orig_lon,
+                                    "waktu": w_dt,
+                                    "temperature": t_val,
+                                    "rainfall": r_val,
+                                    "soil_moisture": sm_val
+                                })
+                        else:
+                            rain_val = precip_list[0] if precip_list and precip_list[0] is not None else None
+                            temp_val = temp_mean_list[0] if temp_mean_list and temp_mean_list[0] is not None else current.get("temperature_2m")
+
+                            results.append({
+                                "latitude": orig_lat,
+                                "longitude": orig_lon,
+                                "temperature": temp_val,
+                                "rainfall": rain_val,
+                                "soil_moisture": sm_val
+                            })
                     success = True
                     break
 
@@ -146,6 +170,17 @@ async def bulk_insert_climate_records(records: List[Dict[str, Any]], sync_time: 
     """
     Simpan hasil fetch cuaca Open-Meteo secara batch ke tabel temperature, rainfall_data, dan soil_moisture_data.
     """
+    # Hapus data tanggal yang sama terlebih dahulu agar idempotent dan mencegah duplikasi
+    dates_in_records = {r["waktu"].date() for r in records if "waktu" in r and r["waktu"] is not None}
+    if dates_in_records:
+        async with AsyncSessionLocal() as session:
+            for d in dates_in_records:
+                d_str = d.strftime("%Y-%m-%d")
+                await session.execute(text(f"DELETE FROM rainfall_data WHERE waktu >= '{d_str} 00:00:00' AND waktu <= '{d_str} 23:59:59' AND is_indonesia = TRUE;"))
+                await session.execute(text(f"DELETE FROM temperature WHERE waktu >= '{d_str} 00:00:00' AND waktu <= '{d_str} 23:59:59' AND is_indonesia = TRUE;"))
+                await session.execute(text(f"DELETE FROM soil_moisture_data WHERE waktu >= '{d_str} 00:00:00' AND waktu <= '{d_str} 23:59:59' AND is_indonesia = TRUE;"))
+            await session.commit()
+
     temp_rows = []
     rain_rows = []
     sm_rows = []
@@ -154,12 +189,13 @@ async def bulk_insert_climate_records(records: List[Dict[str, Any]], sync_time: 
         lat = float(r["latitude"])
         lon = float(r["longitude"])
         geom = from_shape(Point(lon, lat), srid=4326)
+        row_time = r.get("waktu", sync_time)
 
         # 1. Baris suhu udara
         temp_val = r.get("temperature")
         if temp_val is not None:
             temp_rows.append({
-                "waktu": sync_time,
+                "waktu": row_time,
                 "latitude": lat,
                 "longitude": lon,
                 "suhu_celsius": float(temp_val),
@@ -171,7 +207,7 @@ async def bulk_insert_climate_records(records: List[Dict[str, Any]], sync_time: 
         rain_val = r.get("rainfall")
         if rain_val is not None:
             rain_rows.append({
-                "waktu": sync_time,
+                "waktu": row_time,
                 "latitude": lat,
                 "longitude": lon,
                 "curah_hujan_mm": float(rain_val),
@@ -183,7 +219,7 @@ async def bulk_insert_climate_records(records: List[Dict[str, Any]], sync_time: 
         sm_val = r.get("soil_moisture")
         if sm_val is not None and float(sm_val) > 0.001:
             sm_rows.append({
-                "waktu": sync_time,
+                "waktu": row_time,
                 "latitude": lat,
                 "longitude": lon,
                 "soil_moisture": float(sm_val),
@@ -221,10 +257,12 @@ async def sync_all_climate_for_hotspots(
     target_date: Optional[str] = None,
     coordinates: Optional[List[Tuple[float, float]]] = None,
     include_land_grid: bool = True,
-    precision: int = 2
+    precision: int = 2,
+    past_days: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Sinkronisasi cuaca Open-Meteo untuk grid daratan dan titik hotspot dalam 1 kali batch.
+    Jika past_days diisi (misal: 5), akan mengambil data untuk 5 hari terakhir sekaligus.
     """
     coords_set = set()
     ordered_coords: List[Tuple[float, float]] = []
@@ -273,8 +311,13 @@ async def sync_all_climate_for_hotspots(
         }
 
     # 3. Batch fetch cuaca dari Open-Meteo (1 request per chunk 50 koordinat untuk semua parameter)
-    print(f"[Climate Sync] Mengambil cuaca Open-Meteo untuk {len(ordered_coords)} titik...")
-    weather_results = await fetch_weather_data_batch(ordered_coords, target_date=target_date, chunk_size=50)
+    print(f"[Climate Sync] Mengambil cuaca Open-Meteo untuk {len(ordered_coords)} titik (past_days={past_days})...")
+    weather_results = await fetch_weather_data_batch(
+        ordered_coords, 
+        target_date=target_date, 
+        past_days=past_days,
+        chunk_size=50
+    )
 
     valid_records = [r for r in weather_results if r.get("latitude") is not None and r.get("longitude") is not None]
 
@@ -289,7 +332,7 @@ async def sync_all_climate_for_hotspots(
     # 4. Simpan ke database masing-masing tabel
     temp_count, rain_count, soil_count = await bulk_insert_climate_records(valid_records, sync_time=sync_time)
 
-    print(f"[Climate Sync Selesai] {len(valid_records)} lokasi berhasil disinkronkan.")
+    print(f"[Climate Sync Selesai] {len(valid_records)} data record cuaca berhasil disinkronkan.")
 
     return {
         "status": "success",
