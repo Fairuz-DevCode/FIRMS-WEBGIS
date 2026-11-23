@@ -15,7 +15,11 @@ from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
 
 from app.config.database import AsyncSessionLocal
-from app.features.sync.queries import INDONESIA_LAND_GRID_QUERY, DISTINCT_HOTSPOT_COORDINATES_QUERY
+from app.features.sync.queries import (
+    INDONESIA_LAND_GRID_QUERY,
+    HOTSPOT_COORDS_LATEST_DATE_QUERY,
+    HOTSPOT_COORDS_SPECIFIC_DATE_QUERY
+)
 from app.config.cache import cache
 from app.features.rainfall.models import Rainfall
 from app.features.temperature.models import Temperature
@@ -279,9 +283,14 @@ async def sync_all_climate_for_hotspots(
                 ordered_coords.append(key)
     else:
         async with AsyncSessionLocal() as session:
-            res = await session.execute(
-                DISTINCT_HOTSPOT_COORDINATES_QUERY.bindparams(prec=precision, target_date=target_date)
-            )
+            if target_date:
+                res = await session.execute(
+                    HOTSPOT_COORDS_SPECIFIC_DATE_QUERY.bindparams(prec=precision, target_date=target_date)
+                )
+            else:
+                res = await session.execute(
+                    HOTSPOT_COORDS_LATEST_DATE_QUERY.bindparams(prec=precision)
+                )
             for row in res.all():
                 key = (float(row.lat), float(row.lon))
                 if key not in coords_set:

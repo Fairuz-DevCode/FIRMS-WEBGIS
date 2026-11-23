@@ -18,13 +18,21 @@ INDONESIA_LAND_GRID_QUERY = text("""
     ORDER BY lat DESC, lon ASC;
 """)
 
-DISTINCT_HOTSPOT_COORDINATES_QUERY = text("""
+HOTSPOT_COORDS_LATEST_DATE_QUERY = text("""
     SELECT 
         ROUND(latitude::numeric, :prec) as lat,
         ROUND(longitude::numeric, :prec) as lon
     FROM hotspots
-    WHERE (:target_date IS NULL AND acq_date = (SELECT MAX(acq_date) FROM hotspots))
-       OR (:target_date IS NOT NULL AND acq_date = CAST(:target_date AS DATE))
+    WHERE acq_date = (SELECT MAX(acq_date) FROM hotspots)
+    GROUP BY ROUND(latitude::numeric, :prec), ROUND(longitude::numeric, :prec);
+""")
+
+HOTSPOT_COORDS_SPECIFIC_DATE_QUERY = text("""
+    SELECT 
+        ROUND(latitude::numeric, :prec) as lat,
+        ROUND(longitude::numeric, :prec) as lon
+    FROM hotspots
+    WHERE acq_date = CAST(:target_date AS DATE)
     GROUP BY ROUND(latitude::numeric, :prec), ROUND(longitude::numeric, :prec);
 """)
 
