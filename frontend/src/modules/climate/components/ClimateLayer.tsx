@@ -1,4 +1,10 @@
-// BAGIAN 1: Import library dan modul pendukung
+// ==============================================================================
+// LAYER IKLIM (CLIMATE LAYER COMPONENT)
+// ==============================================================================
+// Mengelola rendering raster kanvas iklim kontinu (hujan, kelembaban, suhu)
+// dengan interpolasi spatial kernel dan boundary mask batas kepulauan Indonesia.
+// ==============================================================================
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -17,7 +23,41 @@ interface ClimateLayerProps {
   date?: string;
 }
 
-// BAGIAN 2: Fungsi clipping mask vektor batas kepulauan Indonesia
+// Batas Geografis Indonesia
+const MIN_LAT = -11.0;
+const MAX_LAT = 6.0;
+const MIN_LON = 95.0;
+const MAX_LON = 141.0;
+const GRID_STEP = 0.1;
+
+// ==============================================================================
+// HELPER 1: Utilitas Geometri & Warna
+// ==============================================================================
+function isInIndonesia(lng: number, lat: number): boolean {
+  return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
+}
+
+function hexToRgba(hex: string, alpha: number = 220): [number, number, number, number] {
+  const clean = hex.replace('#', '');
+  const num = parseInt(clean, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255, alpha];
+}
+
+function getGridColorRgba(type: ClimateType, val: number): [number, number, number, number] {
+  let hex = '#38bdf8';
+  if (type === 'rainfall') {
+    hex = getRainfallColor(val);
+  } else if (type === 'soil_moisture') {
+    hex = getSoilMoistureColor(val);
+  } else if (type === 'temperature') {
+    hex = getTemperatureColor(val);
+  }
+  return hexToRgba(hex, 230);
+}
+
+// ==============================================================================
+// HELPER 2: Gambar Vektor Batas Darat Indonesia (Clipping Mask)
+// ==============================================================================
 function drawBoundaryMask(
   ctx: CanvasRenderingContext2D,
   boundary: any,
@@ -62,29 +102,126 @@ function drawBoundaryMask(
   ctx.fill('evenodd');
 }
 
-function isInIndonesia(lng: number, lat: number): boolean {
-  return lng >= 95.0 && lng <= 141.0 && lat >= -11.0 && lat <= 6.1;
+// ==============================================================================
+// HELPER 3: Mesin Interpolasi Spatial Kernel & Offscreen HTML5 Canvas
+// ==============================================================================
+interface GenerateRasterParams {
+  data: number[][];
+  type: ClimateType;
+  boundary: any;
 }
 
-function hexToRgba(hex: string, alpha: number = 220): [number, number, number, number] {
-  const clean = hex.replace('#', '');
-  const num = parseInt(clean, 16);
-  return [(num >> 16) & 255, (num >> 8) & 255, num & 255, alpha];
-}
+function generateClimateRasterUrl({ data, type, boundary }: GenerateRasterParams): string | null {
+  const cols = Math.round((MAX_LON - MIN_LON) / GRID_STEP) + 1;
+  const rows = Math.round((MAX_LAT - MIN_LAT) / GRID_STEP) + 1;
 
-function getGridColorRgba(type: ClimateType, val: number): [number, number, number, number] {
-  let hex = '#38bdf8';
-  if (type === 'rainfall') {
-    hex = getRainfallColor(val);
-  } else if (type === 'soil_moisture') {
-    hex = getSoilMoistureColor(val);
-  } else if (type === 'temperature') {
-    hex = getTemperatureColor(val);
+  const canvas = document.createElement('canvas');
+  canvas.width = cols;
+  canvas.height = rows;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const imgData = ctx.createImageData(cols, rows);
+  const pixels = imgData.data;
+
+  const valSum = new Float32Array(cols * rows);
+  const weightSum = new Float32Array(cols * rows);
+
+  // Kernel interpolasi kosinus radius 10 piksel (~1.0 derajat)
+  const interpRadius = 10;
+  const kernelOffsets: { dx: number; dy: number; w: number }[] = [];
+  for (let dy = -interpRadius; dy <= interpRadius; dy++) {
+    for (let dx = -interpRadius; dx <= interpRadius; dx++) {
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= interpRadius * interpRadius) {
+        const dist = Math.sqrt(d2);
+        const w = Math.cos((dist / interpRadius) * (Math.PI / 2));
+        kernelOffsets.push({ dx, dy, w });
+      }
+    }
   }
-  return hexToRgba(hex, 230);
+
+  // Akumulasi bobot spasial per grid
+  for (let i = 0; i < data.length; i++) {
+    const [lat, lng, val] = data[i];
+    if (lat === undefined || lng === undefined || val === null || val === undefined) continue;
+    if (!isInIndonesia(lng, lat)) continue;
+
+    if (type === 'soil_moisture' && val <= 0.01) continue;
+    if (type === 'temperature' && val < 5) continue;
+    if (type === 'rainfall' && val < 0) continue;
+
+    const x = Math.round((lng - MIN_LON) / GRID_STEP);
+    const y = Math.round((MAX_LAT - lat) / GRID_STEP);
+
+    if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
+
+    for (let j = 0; j < kernelOffsets.length; j++) {
+      const { dx, dy, w } = kernelOffsets[j];
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+        const idx = ny * cols + nx;
+        valSum[idx] += val * w;
+        weightSum[idx] += w;
+      }
+    }
+  }
+
+  // Konversi nilai interpolasi menjadi warna RGBA piksel
+  for (let idx = 0; idx < cols * rows; idx++) {
+    const totalW = weightSum[idx];
+    if (totalW > 0.001) {
+      const interpolatedVal = valSum[idx] / totalW;
+      const [r, g, b, a] = getGridColorRgba(type, interpolatedVal);
+      const pixelIdx = idx * 4;
+      pixels[pixelIdx] = r;
+      pixels[pixelIdx + 1] = g;
+      pixels[pixelIdx + 2] = b;
+      pixels[pixelIdx + 3] = a;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+
+  // Smoothing 4x & Pemotongan Masking Batas Wilayah Indonesia
+  const smoothCanvas = document.createElement('canvas');
+  smoothCanvas.width = cols * 4;
+  smoothCanvas.height = rows * 4;
+  const sCtx = smoothCanvas.getContext('2d');
+  if (sCtx) {
+    sCtx.imageSmoothingEnabled = true;
+    sCtx.imageSmoothingQuality = 'high';
+    sCtx.filter = 'blur(3px)';
+    sCtx.drawImage(canvas, 0, 0, smoothCanvas.width, smoothCanvas.height);
+
+    if (boundary) {
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = smoothCanvas.width;
+      maskCanvas.height = smoothCanvas.height;
+      const maskCtx = maskCanvas.getContext('2d');
+      if (maskCtx) {
+        drawBoundaryMask(maskCtx, boundary, maskCanvas.width, maskCanvas.height, {
+          west: MIN_LON - GRID_STEP / 2,
+          east: MAX_LON + GRID_STEP / 2,
+          south: MIN_LAT - GRID_STEP / 2,
+          north: MAX_LAT + GRID_STEP / 2,
+        });
+
+        // Potong hanya area daratan kepulauan Indonesia
+        sCtx.globalCompositeOperation = 'destination-in';
+        sCtx.filter = 'none';
+        sCtx.drawImage(maskCanvas, 0, 0);
+      }
+    }
+  }
+
+  return (sCtx ? smoothCanvas : canvas).toDataURL('image/png');
 }
 
-// BAGIAN 4: Komponen layer raster iklim kontinu menggunakan HTML5 Canvas
+// ==============================================================================
+// KOMPONEN UTAMA: ClimateLayer
+// ==============================================================================
 export const ClimateLayer: React.FC<ClimateLayerProps> = ({
   type,
   visible,
@@ -96,6 +233,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
   const [boundary, setBoundary] = useState<any>(null);
   const overlayRef = useRef<L.ImageOverlay | null>(null);
 
+  // 1. Ambil Poligon Batas Indonesia Sekali Saja
   useEffect(() => {
     if (!boundary) {
       getBoundaryGeoJSON().then(geojson => {
@@ -104,6 +242,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     }
   }, [boundary]);
 
+  // 2. Ambil Data Grid Iklim Saat Layer Aktif
   useEffect(() => {
     if (!visible) return;
 
@@ -121,10 +260,11 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     return () => { isMounted = false; };
   }, [type, visible, date]);
 
-  // BAGIAN 5: Render raster, interpolasi spatial kernel, dan masking pada peta
+  // 3. Render Kanvas Raster & Tempelkan ke Leaflet ImageOverlay (Bersih & Rapi)
   useEffect(() => {
     if (!map) return;
 
+    // Bersihkan overlay lama jika ada
     if (overlayRef.current) {
       if (map.hasLayer(overlayRef.current)) {
         map.removeLayer(overlayRef.current);
@@ -134,125 +274,17 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
 
     if (!visible || !data || data.length === 0) return;
 
-    const minLat = -11.0;
-    const maxLat = 6.0;
-    const minLon = 95.0;
-    const maxLon = 141.0;
-    const step = 0.1;
-
-    const cols = Math.round((maxLon - minLon) / step) + 1;
-    const rows = Math.round((maxLat - minLat) / step) + 1;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = cols;
-    canvas.height = rows;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const imgData = ctx.createImageData(cols, rows);
-    const pixels = imgData.data;
-
-    const valSum = new Float32Array(cols * rows);
-    const weightSum = new Float32Array(cols * rows);
-
-    // Grid spacing data iklim adalah ~0.25 - 0.5 derajat (~2.5 - 5 piksel canvas).
-    // Radius 10 piksel (~1.0 derajat) menjamin cakupan interpolasi mulus dan menutup celah (gap-filling)
-    // bahkan jika ada baris titik data satelit/cuaca yang hilang pada tanggal tertentu.
-    const interpRadius = 10;
-
-    // Precompute weight offsets agar proses interpolasi berjalan sangat cepat (<15ms)
-    const kernelOffsets: { dx: number; dy: number; w: number }[] = [];
-    for (let dy = -interpRadius; dy <= interpRadius; dy++) {
-      for (let dx = -interpRadius; dx <= interpRadius; dx++) {
-        const d2 = dx * dx + dy * dy;
-        if (d2 <= interpRadius * interpRadius) {
-          const dist = Math.sqrt(d2);
-          const w = Math.cos((dist / interpRadius) * (Math.PI / 2));
-          kernelOffsets.push({ dx, dy, w });
-        }
-      }
-    }
-
-    for (let i = 0; i < data.length; i++) {
-      const [lat, lng, val] = data[i];
-      if (lat === undefined || lng === undefined || val === null || val === undefined) continue;
-      if (!isInIndonesia(lng, lat)) continue;
-
-      if (type === 'soil_moisture' && val <= 0.01) continue;
-      if (type === 'temperature' && val < 5) continue;
-      if (type === 'rainfall' && val < 0) continue;
-
-      const x = Math.round((lng - minLon) / step);
-      const y = Math.round((maxLat - lat) / step);
-
-      if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
-
-      for (let j = 0; j < kernelOffsets.length; j++) {
-        const { dx, dy, w } = kernelOffsets[j];
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-          const idx = ny * cols + nx;
-          valSum[idx] += val * w;
-          weightSum[idx] += w;
-        }
-      }
-    }
-
-    for (let idx = 0; idx < cols * rows; idx++) {
-      const totalW = weightSum[idx];
-      if (totalW > 0.001) {
-        const interpolatedVal = valSum[idx] / totalW;
-        const [r, g, b, a] = getGridColorRgba(type, interpolatedVal);
-        const pixelIdx = idx * 4;
-        pixels[pixelIdx] = r;
-        pixels[pixelIdx + 1] = g;
-        pixels[pixelIdx + 2] = b;
-        pixels[pixelIdx + 3] = a;
-      }
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-
-    const smoothCanvas = document.createElement('canvas');
-    smoothCanvas.width = cols * 4;
-    smoothCanvas.height = rows * 4;
-    const sCtx = smoothCanvas.getContext('2d');
-    if (sCtx) {
-      sCtx.imageSmoothingEnabled = true;
-      sCtx.imageSmoothingQuality = 'high';
-      sCtx.filter = 'blur(3px)';
-      sCtx.drawImage(canvas, 0, 0, smoothCanvas.width, smoothCanvas.height);
-
-      if (boundary) {
-        const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = smoothCanvas.width;
-        maskCanvas.height = smoothCanvas.height;
-        const maskCtx = maskCanvas.getContext('2d');
-        if (maskCtx) {
-          drawBoundaryMask(maskCtx, boundary, maskCanvas.width, maskCanvas.height, {
-            west: minLon - step / 2,
-            east: maxLon + step / 2,
-            south: minLat - step / 2,
-            north: maxLat + step / 2,
-          });
-
-          sCtx.globalCompositeOperation = 'destination-in';
-          sCtx.filter = 'none';
-          sCtx.drawImage(maskCanvas, 0, 0);
-        }
-      }
-    }
-
-    const dataUrl = (sCtx ? smoothCanvas : canvas).toDataURL('image/png');
+    // Panggil helper pembuat gambar raster kanvas
+    const dataUrl = generateClimateRasterUrl({ data, type, boundary });
+    if (!dataUrl) return;
 
     const imageBounds = L.latLngBounds(
-      [minLat - step / 2, minLon - step / 2],
-      [maxLat + step / 2, maxLon + step / 2]
+      [MIN_LAT - GRID_STEP / 2, MIN_LON - GRID_STEP / 2],
+      [MAX_LAT + GRID_STEP / 2, MAX_LON + GRID_STEP / 2]
     );
 
     const overlay = L.imageOverlay(dataUrl, imageBounds, {
-      opacity: opacity,
+      opacity,
       interactive: false,
       pane: map.getPane('climatePane') ? 'climatePane' : 'overlayPane',
     });
@@ -268,7 +300,7 @@ export const ClimateLayer: React.FC<ClimateLayerProps> = ({
     };
   }, [map, visible, data, type, boundary]);
 
-  // BAGIAN 6: Sinkronisasi nilai opasitas layer saat slider digeser
+  // 4. Update Opasitas Instan Saat Slider Digeser
   useEffect(() => {
     if (overlayRef.current) {
       overlayRef.current.setOpacity(opacity);
