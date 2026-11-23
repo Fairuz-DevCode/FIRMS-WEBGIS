@@ -15,6 +15,7 @@ from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
 
 from app.config.database import AsyncSessionLocal
+from app.features.sync.queries import INDONESIA_LAND_GRID_QUERY, DISTINCT_HOTSPOT_COORDINATES_QUERY
 from app.config.cache import cache
 from app.features.rainfall.models import Rainfall
 from app.features.temperature.models import Temperature
@@ -153,15 +154,7 @@ async def get_indonesia_land_grid() -> List[Tuple[float, float]]:
     Mengambil titik grid daratan Indonesia dari database.
     """
     async with AsyncSessionLocal() as session:
-        query = text("""
-            SELECT DISTINCT
-                ROUND(latitude::numeric * 2) / 2 as lat,
-                ROUND(longitude::numeric * 2) / 2 as lon
-            FROM temperature
-            WHERE waktu = '2026-10-31' AND is_indonesia = true
-            ORDER BY lat DESC, lon ASC;
-        """)
-        res = await session.execute(query)
+        res = await session.execute(INDONESIA_LAND_GRID_QUERY)
         return [(float(row.lat), float(row.lon)) for row in res.all()]
 
 
@@ -286,16 +279,9 @@ async def sync_all_climate_for_hotspots(
                 ordered_coords.append(key)
     else:
         async with AsyncSessionLocal() as session:
-            query = text("""
-                SELECT 
-                    ROUND(latitude::numeric, :prec) as lat,
-                    ROUND(longitude::numeric, :prec) as lon
-                FROM hotspots
-                WHERE (:target_date IS NULL AND acq_date = (SELECT MAX(acq_date) FROM hotspots))
-                   OR (:target_date IS NOT NULL AND acq_date = CAST(:target_date AS DATE))
-                GROUP BY ROUND(latitude::numeric, :prec), ROUND(longitude::numeric, :prec);
-            """)
-            res = await session.execute(query.bindparams(prec=precision, target_date=target_date))
+            res = await session.execute(
+                DISTINCT_HOTSPOT_COORDINATES_QUERY.bindparams(prec=precision, target_date=target_date)
+            )
             for row in res.all():
                 key = (float(row.lat), float(row.lon))
                 if key not in coords_set:

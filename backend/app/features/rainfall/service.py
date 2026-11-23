@@ -1,121 +1,105 @@
-# BAGIAN 1: Import library dan modul pendukung
-from typing import Dict, Any, Optional, List
-from sqlalchemy import text
+import logging
+from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.cache import cache
+from app.features.rainfall.queries import (
+    RAINFALL_GRID_WITH_DATE_QUERY,
+    RAINFALL_GRID_LATEST_QUERY,
+    RAINFALL_POINT_KNN_QUERY,
+)
 
-# BAGIAN 2: Service utama data spasial curah hujan
+logger = logging.getLogger(__name__)
+
+
+def _categorize_rainfall(val: float) -> str:
+    """Klasifikasikan tingkat curah hujan (mm)."""
+    if val < 5:
+        return "Kering / Sangat Ringan"
+    return "Hujan Sedang" if val <= 20 else "Hujan Lebat"
+
+
+def _format_grid_response(row) -> Optional[Dict[str, Any]]:
+    """Format hasil eksekusi database menjadi response payload terstandar."""
+    if not row or not row.grid:
+        return None
+    return {
+        "status": "success",
+        "total_records": row.total_count or 0,
+        "summary": {
+            "mean_rainfall_mm": float(row.avg_val or 3.2),
+            "min_rainfall_mm": float(row.min_val or 0.0),
+            "max_rainfall_mm": float(row.max_val or 25.0),
+            "unit": "mm"
+        },
+        "data": row.grid
+    }
+
+
+def _format_point_response(row, lat: float, lon: float) -> Optional[Dict[str, Any]]:
+    """Format hasil KNN terdekat pada titik koordinat."""
+    if not row:
+        return None
+    val = float(row.curah_hujan)
+    return {
+        "status": "success",
+        "target_lat": lat,
+        "target_lon": lon,
+        "nearest_lat": float(row.lat),
+        "nearest_lon": float(row.lon),
+        "rainfall_mm": val,
+        "category": _categorize_rainfall(val),
+        "timestamp": str(row.waktu),
+        "unit": "mm"
+    }
+
+
 class RainfallService:
     @classmethod
-    async def get_rainfall_grid_from_db(cls, db: AsyncSession, limit: int = 20000, date_str: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Ambil grid curah hujan dan ringkasan statistik dari PostGIS.
-        """
+    async def get_rainfall_grid_from_db(
+        cls,
+        db: AsyncSession,
+        limit: int = 20000,
+        date_str: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Ambil grid curah hujan dan ringkasan statistik dari PostGIS."""
         cache_key = f"rainfall_grid_{limit}_{date_str or 'latest'}"
-        cached = cache.get(cache_key)
-        if cached:
+        if cached := cache.get(cache_key):
             return cached
 
         try:
             if date_str:
-                query = text("""
-                    WITH target_time AS (
-                        SELECT COALESCE(
-                            (SELECT MAX(waktu) FROM rainfall_data WHERE waktu >= CAST(:target_date AS timestamp) AND waktu < CAST(:target_date AS timestamp) + interval '1 day'),
-                            (SELECT MAX(waktu) FROM rainfall_data)
-                        ) as matched_time
-                    ),
-                    latest AS (
-                        SELECT latitude, longitude, curah_hujan_mm
-                        FROM rainfall_data, target_time
-                        WHERE waktu = target_time.matched_time
-                          AND is_indonesia = TRUE
-                          AND curah_hujan_mm IS NOT NULL
-                        LIMIT :limit
-                    )
-                    SELECT 
-                        json_agg(json_build_array(ROUND(latitude::numeric, 2), ROUND(longitude::numeric, 2), ROUND(curah_hujan_mm::numeric, 1))) as grid,
-                        (SELECT count(*) FROM latest) as total_count,
-                        (SELECT round(avg(curah_hujan_mm)::numeric, 1) FROM latest) as avg_val,
-                        (SELECT round(min(curah_hujan_mm)::numeric, 1) FROM latest) as min_val,
-                        (SELECT round(max(curah_hujan_mm)::numeric, 1) FROM latest) as max_val
-                    FROM latest;
-                """)
-                result = await db.execute(query.bindparams(limit=limit, target_date=date_str))
+                result = await db.execute(
+                    RAINFALL_GRID_WITH_DATE_QUERY.bindparams(limit=limit, target_date=date_str)
+                )
             else:
-                query = text("""
-                    WITH latest AS (
-                        SELECT latitude, longitude, curah_hujan_mm
-                        FROM rainfall_data
-                        WHERE waktu = (SELECT MAX(waktu) FROM rainfall_data)
-                          AND is_indonesia = TRUE
-                          AND curah_hujan_mm IS NOT NULL
-                        LIMIT :limit
-                    )
-                    SELECT 
-                        json_agg(json_build_array(ROUND(latitude::numeric, 2), ROUND(longitude::numeric, 2), ROUND(curah_hujan_mm::numeric, 1))) as grid,
-                        (SELECT count(*) FROM latest) as total_count,
-                        (SELECT round(avg(curah_hujan_mm)::numeric, 1) FROM latest) as avg_val,
-                        (SELECT round(min(curah_hujan_mm)::numeric, 1) FROM latest) as min_val,
-                        (SELECT round(max(curah_hujan_mm)::numeric, 1) FROM latest) as max_val
-                    FROM latest;
-                """)
-                result = await db.execute(query.bindparams(limit=limit))
-            row = result.first()
-            if row and row.grid:
-                res = {
-                    "status": "success",
-                    "total_records": row.total_count or 0,
-                    "summary": {
-                        "mean_rainfall_mm": float(row.avg_val or 3.2),
-                        "min_rainfall_mm": float(row.min_val or 0.0),
-                        "max_rainfall_mm": float(row.max_val or 25.0),
-                        "unit": "mm"
-                    },
-                    "data": row.grid
-                }
-                cache.set(cache_key, res, 3600)
-                return res
+                result = await db.execute(
+                    RAINFALL_GRID_LATEST_QUERY.bindparams(limit=limit)
+                )
+
+            if formatted := _format_grid_response(result.first()):
+                cache.set(cache_key, formatted, 3600)
+                return formatted
+
         except Exception as e:
-            print(f"[RainfallService Error] {e}")
+            logger.error(f"Gagal mengambil grid curah hujan: {e}", exc_info=True)
 
         return {"status": "error", "data": []}
 
-    # BAGIAN 3: Pengambilan nilai terdekat pada koordinat spesifik (KNN PostGIS)
     @classmethod
-    async def get_rainfall_at_point_from_db(cls, db: AsyncSession, lat: float, lon: float) -> Dict[str, Any]:
-        """
-        Ambil nilai curah hujan terdekat dengan PostGIS KNN operator (<->).
-        """
+    async def get_rainfall_at_point_from_db(
+        cls,
+        db: AsyncSession,
+        lat: float,
+        lon: float
+    ) -> Dict[str, Any]:
+        """Ambil nilai curah hujan terdekat dengan PostGIS KNN operator (<->)."""
         try:
-            query = text("""
-                SELECT 
-                    ROUND(latitude::numeric, 4) as lat,
-                    ROUND(longitude::numeric, 4) as lon,
-                    ROUND(curah_hujan_mm::numeric, 1) as curah_hujan,
-                    waktu
-                FROM rainfall_data
-                WHERE waktu = (SELECT MAX(waktu) FROM rainfall_data)
-                ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)
-                LIMIT 1;
-            """)
-            result = await db.execute(query.bindparams(lat=lat, lon=lon))
-            row = result.first()
-            if row:
-                val = float(row.curah_hujan)
-                category = "Kering / Sangat Ringan" if val < 5 else ("Hujan Sedang" if val <= 20 else "Hujan Lebat")
-                return {
-                    "status": "success",
-                    "target_lat": lat,
-                    "target_lon": lon,
-                    "nearest_lat": float(row.lat),
-                    "nearest_lon": float(row.lon),
-                    "rainfall_mm": val,
-                    "category": category,
-                    "timestamp": str(row.waktu),
-                    "unit": "mm"
-                }
+            result = await db.execute(
+                RAINFALL_POINT_KNN_QUERY.bindparams(lat=lat, lon=lon)
+            )
+            if point_data := _format_point_response(result.first(), lat=lat, lon=lon):
+                return point_data
         except Exception as e:
-            print(f"[Rainfall Point Error] {e}")
+            logger.error(f"Gagal mengambil titik curah hujan KNN: {e}", exc_info=True)
 
         return {"status": "error", "target_lat": lat, "target_lon": lon}

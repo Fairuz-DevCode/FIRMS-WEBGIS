@@ -1,8 +1,9 @@
-# BAGIAN 1: Import library dan modul pendukung
 import os
 import glob
+import logging
 from typing import Dict, Any, Optional, List
-import numpy as np
+
+logger = logging.getLogger(__name__)
 
 try:
     import rasterio
@@ -10,7 +11,6 @@ try:
 except ImportError:
     HAS_RASTERIO = False
 
-# BAGIAN 2: Kamus klasifikasi tutupan lahan (land cover classes)
 LAND_COVER_CLASSES = {
     1: "Tree Cover / Forest",
     2: "Shrubland",
@@ -25,21 +25,61 @@ LAND_COVER_CLASSES = {
     11: "Moss and Lichen"
 }
 
-# BAGIAN 3: Service pengelolaan dan sampling raster GeoTIFF
+DEFAULT_SEARCH_PATHS = [
+    "/app/data/raw data/*.tif",
+    "/app/data/*.tif",
+    os.path.join(os.getcwd(), "data/raw data/*.tif"),
+    os.path.join(os.getcwd(), "data/*.tif"),
+]
+
+
+def _read_pixel_from_geotiff(geotiff_path: str, lat: float, lon: float) -> Optional[int]:
+    """Baca nilai 1 pixel dari raster GeoTIFF menggunakan Rasterio."""
+    if not (HAS_RASTERIO and geotiff_path and os.path.exists(geotiff_path)):
+        return None
+    try:
+        with rasterio.open(geotiff_path) as src:
+            row, col = src.index(lon, lat)
+            window = rasterio.windows.Window(col, row, 1, 1)
+            val = src.read(1, window=window)[0, 0]
+            return int(val)
+    except Exception as e:
+        logger.error(f"Gagal membaca pixel dari GeoTIFF ({geotiff_path}): {e}")
+        return None
+
+
+def _format_land_cover_result(
+    lat: float,
+    lon: float,
+    pixel_val: Optional[int],
+    geotiff_path: Optional[str]
+) -> Dict[str, Any]:
+    """Format payload response klasifikasi tutupan lahan."""
+    if pixel_val is not None and geotiff_path:
+        return {
+            "lat": lat,
+            "lon": lon,
+            "pixel_val": pixel_val,
+            "land_cover": LAND_COVER_CLASSES.get(pixel_val, f"Class {pixel_val}"),
+            "raster_file": os.path.basename(geotiff_path),
+            "source": "rasterio"
+        }
+    return {
+        "lat": lat,
+        "lon": lon,
+        "pixel_val": None,
+        "land_cover": "Data raster GeoTIFF tidak tersedia untuk titik ini",
+        "raster_file": None,
+        "source": "none"
+    }
+
+
 class LandCoverService:
     @staticmethod
     def get_available_rasters() -> List[Dict[str, Any]]:
-        """
-        Daftar file raster GeoTIFF tutupan lahan pada direktori data.
-        """
-        search_paths = [
-            "/app/data/raw data/*.tif",
-            "/app/data/*.tif",
-            os.path.join(os.getcwd(), "data/raw data/*.tif"),
-            os.path.join(os.getcwd(), "data/*.tif"),
-        ]
+        """Daftar file raster GeoTIFF tutupan lahan pada direktori data."""
         files = []
-        for path_pattern in search_paths:
+        for path_pattern in DEFAULT_SEARCH_PATHS:
             for filepath in glob.glob(path_pattern):
                 filename = os.path.basename(filepath)
                 if not any(f["filename"] == filename for f in files):
@@ -50,40 +90,18 @@ class LandCoverService:
                     })
         return files
 
-    # BAGIAN 4: Sampling nilai piksel GeoTIFF pada koordinat geografis
     @staticmethod
-    def sample_land_cover(lat: float, lon: float, geotiff_path: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Sampling nilai tutupan lahan pada koordinat (lat, lon) menggunakan Rasterio.
-        """
-        if not geotiff_path:
+    def sample_land_cover(
+        lat: float,
+        lon: float,
+        geotiff_path: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Sampling nilai tutupan lahan pada koordinat (lat, lon) menggunakan Rasterio."""
+        selected_path = geotiff_path
+        if not selected_path:
             rasters = LandCoverService.get_available_rasters()
             if rasters:
-                geotiff_path = rasters[0]["path"]
+                selected_path = rasters[0]["path"]
 
-        if HAS_RASTERIO and geotiff_path and os.path.exists(geotiff_path):
-            try:
-                with rasterio.open(geotiff_path) as src:
-                    row, col = src.index(lon, lat)
-                    window = rasterio.windows.Window(col, row, 1, 1)
-                    val = src.read(1, window=window)[0, 0]
-                    val_int = int(val)
-                    return {
-                        "lat": lat,
-                        "lon": lon,
-                        "pixel_val": val_int,
-                        "land_cover": LAND_COVER_CLASSES.get(val_int, f"Class {val_int}"),
-                        "raster_file": os.path.basename(geotiff_path),
-                        "source": "rasterio"
-                    }
-            except Exception as e:
-                print(f"[LandCoverService Error] Rasterio: {e}")
-
-        return {
-            "lat": lat,
-            "lon": lon,
-            "pixel_val": None,
-            "land_cover": "Data raster GeoTIFF tidak tersedia untuk titik ini",
-            "raster_file": None,
-            "source": "none"
-        }
+        pixel_val = _read_pixel_from_geotiff(selected_path, lat, lon) if selected_path else None
+        return _format_land_cover_result(lat, lon, pixel_val, selected_path)

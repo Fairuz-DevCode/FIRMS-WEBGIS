@@ -12,6 +12,7 @@ from shapely.geometry import Point
 
 from app.config.database import AsyncSessionLocal
 from app.config.cache import cache
+from app.features.sync.queries import UPDATE_HOTSPOTS_PEATLAND_STATUS_QUERY
 from app.features.hotspot.models import Hotspot
 
 # Batas area geografis Indonesia: [min_lon, min_lat, max_lon, max_lat]
@@ -167,14 +168,7 @@ async def sync_nasa_firms_data(
 
             # BAGIAN 5: Tandai titik di lahan gambut dan sinkronisasi cuaca
             try:
-                sql_peatland = text("""
-                    UPDATE hotspots h
-                    SET is_peatland = TRUE
-                    FROM peatlands p
-                    WHERE (h.is_peatland IS NULL OR h.is_peatland = FALSE)
-                    AND h.geom && p.geom AND ST_Intersects(h.geom, p.geom);
-                """)
-                await session.execute(sql_peatland)
+                await session.execute(UPDATE_HOTSPOTS_PEATLAND_STATUS_QUERY)
                 await session.commit()
                 print("[FIRMS Sync] Status lahan gambut berhasil diperbarui.")
             except Exception as e_enrich:

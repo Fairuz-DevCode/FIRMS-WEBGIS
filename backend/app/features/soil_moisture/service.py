@@ -1,121 +1,105 @@
-# BAGIAN 1: Import library dan modul pendukung
-from typing import Dict, Any, Optional, List
-from sqlalchemy import text
+import logging
+from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.cache import cache
+from app.features.soil_moisture.queries import (
+    SOIL_MOISTURE_GRID_WITH_DATE_QUERY,
+    SOIL_MOISTURE_GRID_LATEST_QUERY,
+    SOIL_MOISTURE_POINT_KNN_QUERY,
+)
 
-# BAGIAN 2: Service data spasial kelembaban tanah
+logger = logging.getLogger(__name__)
+
+
+def _categorize_soil_moisture(val: float) -> str:
+    """Klasifikasikan tingkat kelembaban tanah (m³/m³)."""
+    if val < 0.2:
+        return "Sangat Kering (Kritis)"
+    return "Cukup Lembab" if val <= 0.35 else "Lembab / Jenuh Air"
+
+
+def _format_grid_response(row) -> Optional[Dict[str, Any]]:
+    """Format hasil baris database menjadi payload grid kelembaban tanah."""
+    if not row or not row.grid:
+        return None
+    return {
+        "status": "success",
+        "total_records": row.total_count or 0,
+        "summary": {
+            "mean_soil_moisture": float(row.avg_val or 0.28),
+            "min_soil_moisture": float(row.min_val or 0.05),
+            "max_soil_moisture": float(row.max_val or 0.55),
+            "unit": "m³/m³"
+        },
+        "data": row.grid
+    }
+
+
+def _format_point_response(row, lat: float, lon: float) -> Optional[Dict[str, Any]]:
+    """Format hasil KNN terdekat kelembaban tanah."""
+    if not row:
+        return None
+    val = float(row.moisture)
+    return {
+        "status": "success",
+        "target_lat": lat,
+        "target_lon": lon,
+        "nearest_lat": float(row.lat),
+        "nearest_lon": float(row.lon),
+        "soil_moisture": val,
+        "category": _categorize_soil_moisture(val),
+        "timestamp": str(row.waktu),
+        "unit": "m³/m³"
+    }
+
+
 class SoilMoistureService:
     @classmethod
-    async def get_soil_moisture_grid_from_db(cls, db: AsyncSession, limit: int = 20000, date_str: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Ambil grid kelembaban tanah dan statistik ringkasan dari PostGIS.
-        """
+    async def get_soil_moisture_grid_from_db(
+        cls,
+        db: AsyncSession,
+        limit: int = 20000,
+        date_str: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Ambil grid kelembaban tanah dan statistik ringkasan dari PostGIS."""
         cache_key = f"soil_moisture_grid_{limit}_{date_str or 'latest'}"
-        cached = cache.get(cache_key)
-        if cached:
+        if cached := cache.get(cache_key):
             return cached
 
         try:
             if date_str:
-                query = text("""
-                    WITH target_time AS (
-                        SELECT COALESCE(
-                            (SELECT MAX(waktu) FROM soil_moisture_data WHERE waktu >= CAST(:target_date AS timestamp) AND waktu < CAST(:target_date AS timestamp) + interval '1 day'),
-                            (SELECT MAX(waktu) FROM soil_moisture_data)
-                        ) as matched_time
-                    ),
-                    latest AS (
-                        SELECT latitude, longitude, soil_moisture
-                        FROM soil_moisture_data, target_time
-                        WHERE waktu = target_time.matched_time
-                          AND is_indonesia = TRUE
-                          AND soil_moisture IS NOT NULL AND soil_moisture > 0.01
-                        LIMIT :limit
-                    )
-                    SELECT 
-                        json_agg(json_build_array(ROUND(latitude::numeric, 2), ROUND(longitude::numeric, 2), ROUND(soil_moisture::numeric, 3))) as grid,
-                        (SELECT count(*) FROM latest) as total_count,
-                        (SELECT round(avg(soil_moisture)::numeric, 3) FROM latest) as avg_val,
-                        (SELECT round(min(soil_moisture)::numeric, 3) FROM latest) as min_val,
-                        (SELECT round(max(soil_moisture)::numeric, 3) FROM latest) as max_val
-                    FROM latest;
-                """)
-                result = await db.execute(query.bindparams(limit=limit, target_date=date_str))
+                result = await db.execute(
+                    SOIL_MOISTURE_GRID_WITH_DATE_QUERY.bindparams(limit=limit, target_date=date_str)
+                )
             else:
-                query = text("""
-                    WITH latest AS (
-                        SELECT latitude, longitude, soil_moisture
-                        FROM soil_moisture_data
-                        WHERE waktu = (SELECT MAX(waktu) FROM soil_moisture_data)
-                          AND is_indonesia = TRUE
-                          AND soil_moisture IS NOT NULL AND soil_moisture > 0.01
-                        LIMIT :limit
-                    )
-                    SELECT 
-                        json_agg(json_build_array(ROUND(latitude::numeric, 2), ROUND(longitude::numeric, 2), ROUND(soil_moisture::numeric, 3))) as grid,
-                        (SELECT count(*) FROM latest) as total_count,
-                        (SELECT round(avg(soil_moisture)::numeric, 3) FROM latest) as avg_val,
-                        (SELECT round(min(soil_moisture)::numeric, 3) FROM latest) as min_val,
-                        (SELECT round(max(soil_moisture)::numeric, 3) FROM latest) as max_val
-                    FROM latest;
-                """)
-                result = await db.execute(query.bindparams(limit=limit))
-            row = result.first()
-            if row and row.grid:
-                res = {
-                    "status": "success",
-                    "total_records": row.total_count or 0,
-                    "summary": {
-                        "mean_soil_moisture": float(row.avg_val or 0.28),
-                        "min_soil_moisture": float(row.min_val or 0.05),
-                        "max_soil_moisture": float(row.max_val or 0.55),
-                        "unit": "m³/m³"
-                    },
-                    "data": row.grid
-                }
-                cache.set(cache_key, res, 3600)
-                return res
+                result = await db.execute(
+                    SOIL_MOISTURE_GRID_LATEST_QUERY.bindparams(limit=limit)
+                )
+
+            if formatted := _format_grid_response(result.first()):
+                cache.set(cache_key, formatted, 3600)
+                return formatted
+
         except Exception as e:
-            print(f"[SoilMoistureService Error] {e}")
+            logger.error(f"Gagal mengambil grid kelembaban tanah: {e}", exc_info=True)
 
         return {"status": "error", "data": []}
 
-    # BAGIAN 3: Pengambilan nilai terdekat pada titik tertentu via PostGIS KNN
     @classmethod
-    async def get_soil_moisture_at_point_from_db(cls, db: AsyncSession, lat: float, lon: float) -> Dict[str, Any]:
-        """
-        Ambil nilai kelembaban tanah terdekat dengan PostGIS KNN operator (<->).
-        """
+    async def get_soil_moisture_at_point_from_db(
+        cls,
+        db: AsyncSession,
+        lat: float,
+        lon: float
+    ) -> Dict[str, Any]:
+        """Ambil nilai kelembaban tanah terdekat dengan PostGIS KNN operator (<->)."""
         try:
-            query = text("""
-                SELECT 
-                    ROUND(latitude::numeric, 4) as lat,
-                    ROUND(longitude::numeric, 4) as lon,
-                    ROUND(soil_moisture::numeric, 3) as moisture,
-                    waktu
-                FROM soil_moisture_data
-                WHERE waktu = (SELECT MAX(waktu) FROM soil_moisture_data)
-                ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)
-                LIMIT 1;
-            """)
-            result = await db.execute(query.bindparams(lat=lat, lon=lon))
-            row = result.first()
-            if row:
-                val = float(row.moisture)
-                category = "Sangat Kering (Kritis)" if val < 0.2 else ("Cukup Lembab" if val <= 0.35 else "Lembab / Jenuh Air")
-                return {
-                    "status": "success",
-                    "target_lat": lat,
-                    "target_lon": lon,
-                    "nearest_lat": float(row.lat),
-                    "nearest_lon": float(row.lon),
-                    "soil_moisture": val,
-                    "category": category,
-                    "timestamp": str(row.waktu),
-                    "unit": "m³/m³"
-                }
+            result = await db.execute(
+                SOIL_MOISTURE_POINT_KNN_QUERY.bindparams(lat=lat, lon=lon)
+            )
+            if point_data := _format_point_response(result.first(), lat=lat, lon=lon):
+                return point_data
         except Exception as e:
-            print(f"[SoilMoisture Point Error] {e}")
+            logger.error(f"Gagal mengambil titik kelembaban tanah KNN: {e}", exc_info=True)
 
         return {"status": "error", "target_lat": lat, "target_lon": lon}

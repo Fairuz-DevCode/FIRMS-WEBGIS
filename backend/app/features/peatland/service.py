@@ -1,119 +1,39 @@
-# BAGIAN 1: Import library dan modul pendukung
 import os
+import logging
 from typing import Dict, Any, List, Optional
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from shapely.geometry import Point
 import geopandas as gpd
+
 from app.config.cache import cache
+from app.features.peatland.queries import (
+    PEATLAND_GEOJSON_QUERY,
+    PEATLAND_HOTSPOTS_SPATIAL_JOIN_QUERY,
+)
 
-# BAGIAN 2: Pengambilan GeoJSON batas lahan gambut dari database PostGIS
-async def get_peatland_geojson_from_db(db: AsyncSession) -> Dict[str, Any]:
-    """
-    Ambil FeatureCollection GeoJSON poligon lahan gambut dari PostGIS.
-    """
-    cache_key = "peatland_geojson_featurecollection"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
+logger = logging.getLogger(__name__)
 
-    try:
-        query = text("""
-            SELECT jsonb_build_object(
-                'type', 'FeatureCollection',
-                'features', COALESCE(
-                    jsonb_agg(
-                        jsonb_build_object(
-                            'type', 'Feature',
-                            'geometry', ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.002))::jsonb,
-                            'properties', jsonb_build_object(
-                                'ogc_fid', ogc_fid,
-                                'objectid', objectid,
-                                'layer_revi', layer_revi,
-                                'shape_area', shape_area
-                            )
-                        )
-                    ),
-                    '[]'::jsonb
-                )
-            ) AS geojson
-            FROM peatlands;
-        """)
-        result = await db.execute(query)
-        geojson = result.scalar()
 
-        if geojson and isinstance(geojson, dict):
-            cache.set(cache_key, geojson, 86400)
-            return geojson
+def _build_spatial_summary(total: int, in_peatland: int, high_risk: list, source: str) -> Dict[str, Any]:
+    """Helper untuk standarisasi format response analisis spasial lahan gambut."""
+    pct = round((in_peatland / total * 100.0), 2) if total > 0 else 0.0
+    return {
+        "total_hotspots": total,
+        "hotspots_in_peatland": in_peatland,
+        "percentage_in_peatland": pct,
+        "high_risk_hotspots": high_risk[:50],
+        "source": source
+    }
 
-        return {"type": "FeatureCollection", "features": []}
-    except Exception as e:
-        print(f"[PeatlandService Error] PostGIS query: {e}")
-        return {"type": "FeatureCollection", "features": []}
 
-# BAGIAN 3: Analisis spasial PostGIS ST_Intersects hotspot vs kubah gambut
-async def analyze_peatland_hotspots_db(db: AsyncSession, days: int = 30) -> Optional[Dict[str, Any]]:
-    """
-    Spatial join PostGIS (ST_Intersects) antara titik hotspot dan kubah gambut.
-    """
-    try:
-        query = text("""
-            WITH recent_hotspots AS (
-                SELECT h.id, h.latitude, h.longitude, h.brightness, h.frp, h.acq_date::text, h.geom
-                FROM hotspots h
-                WHERE h.acq_date >= (SELECT COALESCE(MAX(acq_date), CURRENT_DATE) FROM hotspots) - (INTERVAL '1 day' * :days)
-            ),
-            joined AS (
-                SELECT DISTINCT h.id, h.latitude, h.longitude, h.brightness, h.frp, h.acq_date
-                FROM recent_hotspots h
-                JOIN peatlands p ON ST_Intersects(h.geom, p.geom)
-            )
-            SELECT
-                (SELECT COUNT(*) FROM recent_hotspots) AS total_hotspots,
-                (SELECT COUNT(*) FROM joined) AS hotspots_in_peatland,
-                COALESCE(
-                    (SELECT json_agg(j) FROM joined j WHERE j.frp > 50),
-                    '[]'::json
-                ) AS high_risk;
-        """)
-        result = await db.execute(query.bindparams(days=days))
-        row = result.first()
-        if row and row.total_hotspots > 0:
-            total = row.total_hotspots or 0
-            in_peatland = row.hotspots_in_peatland or 0
-            pct = round((in_peatland / total * 100.0), 2) if total > 0 else 0.0
-            high_risk = row.high_risk if isinstance(row.high_risk, list) else []
-            return {
-                "total_hotspots": total,
-                "hotspots_in_peatland": in_peatland,
-                "percentage_in_peatland": pct,
-                "high_risk_hotspots": high_risk[:50],
-                "source": "postgis_spatial_index"
-            }
-    except Exception as e:
-        print(f"[PeatlandService Error] Spatial join: {e}")
-    return None
-
-# BAGIAN 4: Fallback analisis spasial GeoPandas Point-in-Polygon
-def analyze_peatland_hotspots_gpd(hotspot_features: List[Dict[str, Any]], peatland_geojson_path: str) -> Dict[str, Any]:
-    """
-    Fallback GeoPandas spatial join saat database PostGIS tidak tersedia.
-    """
-    if not hotspot_features:
-        return {
-            "total_hotspots": 0,
-            "hotspots_in_peatland": 0,
-            "percentage_in_peatland": 0.0,
-            "high_risk_hotspots": []
-        }
-
+def _extract_hotspot_geodataframe(hotspot_features: List[Dict[str, Any]]) -> gpd.GeoDataFrame:
+    """Helper untuk menyusun GeoPandas GeoDataFrame dari list GeoJSON features."""
     records = []
     for feat in hotspot_features:
         props = feat.get("properties", {})
         coords = feat.get("geometry", {}).get("coordinates", [0, 0])
-        pt = Point(coords[0], coords[1])
         records.append({
-            "geometry": pt,
+            "geometry": Point(coords[0], coords[1]),
             "id": props.get("id"),
             "latitude": props.get("latitude"),
             "longitude": props.get("longitude"),
@@ -122,10 +42,63 @@ def analyze_peatland_hotspots_gpd(hotspot_features: List[Dict[str, Any]], peatla
             "confidence": props.get("confidence", "n/a"),
             "acq_date": props.get("acq_date")
         })
+    return gpd.GeoDataFrame(records, crs="EPSG:4326")
 
-    hotspots_gdf = gpd.GeoDataFrame(records, crs="EPSG:4326")
+
+async def get_peatland_geojson_from_db(db: AsyncSession) -> Dict[str, Any]:
+    """Ambil FeatureCollection GeoJSON poligon lahan gambut dari PostGIS."""
+    cache_key = "peatland_geojson_featurecollection"
+    if cached := cache.get(cache_key):
+        return cached
+
+    try:
+        result = await db.execute(PEATLAND_GEOJSON_QUERY)
+        geojson = result.scalar()
+
+        if geojson and isinstance(geojson, dict):
+            cache.set(cache_key, geojson, 86400)
+            return geojson
+
+    except Exception as e:
+        logger.error(f"Gagal mengambil GeoJSON lahan gambut: {e}", exc_info=True)
+
+    return {"type": "FeatureCollection", "features": []}
+
+
+async def analyze_peatland_hotspots_db(db: AsyncSession, days: int = 30) -> Optional[Dict[str, Any]]:
+    """Spatial join PostGIS (ST_Intersects) antara titik hotspot dan kubah gambut."""
+    try:
+        result = await db.execute(
+            PEATLAND_HOTSPOTS_SPATIAL_JOIN_QUERY.bindparams(days=days)
+        )
+        row = result.first()
+        if row and (row.total_hotspots or 0) > 0:
+            total = row.total_hotspots or 0
+            in_peatland = row.hotspots_in_peatland or 0
+            high_risk = row.high_risk if isinstance(row.high_risk, list) else []
+            return _build_spatial_summary(
+                total=total,
+                in_peatland=in_peatland,
+                high_risk=high_risk,
+                source="postgis_spatial_index"
+            )
+    except Exception as e:
+        logger.error(f"Gagal spatial join PostGIS peatland: {e}", exc_info=True)
+
+    return None
+
+
+def analyze_peatland_hotspots_gpd(
+    hotspot_features: List[Dict[str, Any]],
+    peatland_geojson_path: str
+) -> Dict[str, Any]:
+    """Fallback GeoPandas spatial join saat database PostGIS tidak tersedia."""
+    if not hotspot_features:
+        return _build_spatial_summary(0, 0, [], "geopandas_fallback")
+
+    hotspots_gdf = _extract_hotspot_geodataframe(hotspot_features)
     in_peatland_count = 0
-    high_risk = []
+    high_risk: List[Dict[str, Any]] = []
 
     if os.path.exists(peatland_geojson_path):
         try:
@@ -134,17 +107,15 @@ def analyze_peatland_hotspots_gpd(hotspot_features: List[Dict[str, Any]], peatla
             in_peatland_count = len(joined)
 
             high_risk_gdf = joined[joined["frp"] > 50]
-            high_risk = high_risk_gdf[["id", "latitude", "longitude", "brightness", "frp", "acq_date"]].to_dict(orient="records")
+            high_risk = high_risk_gdf[
+                ["id", "latitude", "longitude", "brightness", "frp", "acq_date"]
+            ].to_dict(orient="records")
         except Exception as e:
-            print(f"[PeatlandService Error] GeoPandas join: {e}")
+            logger.error(f"Gagal GeoPandas join peatland: {e}", exc_info=True)
 
-    total = len(hotspots_gdf)
-    pct = round((in_peatland_count / total * 100.0), 2) if total > 0 else 0.0
-
-    return {
-        "total_hotspots": total,
-        "hotspots_in_peatland": in_peatland_count,
-        "percentage_in_peatland": pct,
-        "high_risk_hotspots": high_risk[:50],
-        "source": "geopandas_fallback"
-    }
+    return _build_spatial_summary(
+        total=len(hotspots_gdf),
+        in_peatland=in_peatland_count,
+        high_risk=high_risk,
+        source="geopandas_fallback"
+    )
