@@ -173,9 +173,8 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                         }}
                         className="w-full h-8 rounded-lg border border-slate-200 bg-slate-50 px-2.5 pr-7 text-xs font-semibold text-slate-800 shadow-2xs focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer"
                       >
-                        <option value="ALL">Semua Satelit</option>
-                        <option value="VIIRS_SNPP_NRT">VIIRS S-NPP</option>
-                        <option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20</option>
+                        <option value="VIIRS_SNPP_NRT">VIIRS S-NPP (375m)</option>
+                        <option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20 (375m)</option>
                       </select>
                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                     </div>
@@ -284,9 +283,8 @@ export const Navbar: React.FC<NavbarProps> = (props) => {
                         onChange={(e) => props.onSensorChange?.(e.target.value as SensorType)}
                         className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 pr-8 text-xs font-semibold text-slate-800 shadow-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer"
                       >
-                        <option value="ALL">Semua Satelit</option>
-                        <option value="VIIRS_SNPP_NRT">VIIRS S-NPP</option>
-                        <option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20</option>
+                        <option value="VIIRS_SNPP_NRT">VIIRS S-NPP (375m)</option>
+                        <option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20 (375m)</option>
                       </select>
                       <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                     </div>
